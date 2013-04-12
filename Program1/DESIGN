@@ -1,11 +1,15 @@
-Purpose:
+Purpose:Create a shell that has some basic commands. The goal up-to-date with system programming. 
 
 Assumptions:
+1. Input will be by keyboard.
 
-Rules:
+2. 
 
 Data:
 
 Operations:
+
+1.exit() 
+	exits the shell
 
 Algorithms:
