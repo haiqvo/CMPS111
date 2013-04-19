@@ -111,9 +111,15 @@ int main(int argc, char** argv)
     	if(fork() != 0)
     	{
 			waitpid(-1, &status, 0);
-			if(f->out != NULL) fclose(f->out);
-			if(f->in != NULL) fclose(f->in);
-		}
+			if(f->out != NULL) {
+				fclose(f->out);
+				stdout = freopen ("/dev/tty", "a", stdout);
+			}
+			if(f->in != NULL) {
+				fclose(f->in);
+				stdin = freopen ("/dev/tty", "r", stdin);
+			}
+				}
     	else
     	{
     		execute(args, f);
