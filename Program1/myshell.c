@@ -10,6 +10,7 @@
 
 extern char **get_line();
 extern char **environ;
+char* id;
 
 struct condition_flags
 {
@@ -29,6 +30,11 @@ flags init_flags(void)
 	ret->pipe = 0;
 }
 
+void type_prompt(char* id)
+{
+   printf("%s# ", id);
+}
+
 void kchild(int sig)
 {
 	pid_t pid;
@@ -36,6 +42,7 @@ void kchild(int sig)
     {
         kill(pid, SIGKILL);//, SIGTERM);
     }
+    //type_prompt(id);
 }
 
 char** parse(flags f, char** args)
@@ -73,12 +80,12 @@ char** parse(flags f, char** args)
 			}
 	}
 	ret[j+1] = NULL;
+	if(!strcmp(args[0], "cd"))
+	{
+		chdir(args[1]);
+		return NULL;
+	}
 	return ret;
-}
-
-void type_prompt(char* id)
-{
-   printf("%s# ", id);
 }
 
 char* strip_path(char* path)
@@ -137,10 +144,6 @@ char* extract_path(char* PATH, int n)
 
 void execute(char** args, flags f)
 {
-	if(!strcmp(args[0], "cd"))
-	{
-		chdir(args[1]);
-	}
 	set_standard(f);
 	int er = execvp(args[0], args);
     char* PATH = getenv("PATH");
@@ -170,7 +173,7 @@ int main(int argc, char** argv)
 	printf("PATH=%s\n",PATH);*/
 	
 	int status;
-	char* id = strip_path(argv[0]);
+	id = strip_path(argv[0]);
 	flags f = init_flags();
 	int i;
 	char **args;
@@ -178,17 +181,8 @@ int main(int argc, char** argv)
 	while(1) 
 	{
 		type_prompt(id);
-		
-		//freopen("/dev/tty", "w", stdout);
-		//freopen("/dev/tty", "r", stdin);
-		
 		args = get_line();
-		printf("Argument list:\n");
-		for(i = 0; args[i] != NULL; i++)
-		{
-			printf("%s\n", args[i]);
-		}
-    	/*args = parse(f, args);
+    	args = parse(f, args);
     	if(args == NULL) continue;
     	pid_t pid = fork();
     	switch(pid)
@@ -207,6 +201,6 @@ int main(int argc, char** argv)
     				fprintf(stderr, "Child process \"%s\" terminated\n", args[0]);
     			}
     			//try_standard(f);
-    	}*/
+    	}
   	}
 }
