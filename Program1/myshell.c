@@ -30,11 +30,6 @@ flags init_flags(void)
 char** parse(flags f, char** args)
 {
 	if (!strcmp("exit", args[0])) exit(0);
-	else if(!strcmp("cd", args[0]))
-	{
-		int er = chdir(args[1]);
-		return NULL;
-	}
 	char** ret = malloc(sizeof(char*)*10);
 	ret[0] = "NULL";
 	int i;
@@ -106,18 +101,24 @@ int main(int argc, char** argv)
 	{
 		type_prompt(id);
 		args = get_line();
-    	args = parse(f, args);
-    	if(args == NULL) continue;
-    	if(fork() != 0)
-    	{
+    		args = parse(f, args);
+    		if(args == NULL) continue;
+    		if(fork() != 0)
+    		{
+			
 			waitpid(-1, &status, 0);
-			if(f->out != NULL) fclose(f->out);
-			if(f->in != NULL) fclose(f->in);
+                        if(f->out != NULL){
+                            freopen("/dev/tty", "w", stdout); 
+                        }
+			if(f->in != NULL){
+                            freopen("/dev/tty", "r", stdin); 
+                        }
+			
 		}
-    	else
-    	{
+    		else
+    		{
     		execute(args, f);
     		exit(1);
-    	}
+    		}
   	}
 }
