@@ -77,7 +77,7 @@ char** parse(char** args)
 					if(args[++i] != NULL) f->in = strdup(args[i]);//freopen(args[i], "r", stdin);//else error
 					break;
 				case '|':
-					f->pipe = 1;
+					f->pipe = i;
 					break;
 				default:
 					ret[j++] = strdup(args[i]);
@@ -175,18 +175,20 @@ void execute(char** args)
 }
 
 void excutePipe(char** args){
-char* args1 = strndup(args, f->pipe);
-char* args2 = strdup(args + f->pipe);
+char** args1 = malloc(sizeof(char*)*10);
+char** args2 = malloc(sizeof(char*)*10);
 int i;
 printf("args1:\n");
-for(i = 0; args1[i] != NULL; i++)
+for(i = 0; i<=f->pipe; i++)
 {
+	args1[i] = args[i]; 
 	printf("%s\n", args1[i]);
 }
 printf("args2:\n");
-for(i = 0; args2[i] != NULL; i++)
+for(i = f->pipe+1; args[i]!=NULL; i++)
 {
-	printf("%s\n", args1[i]);
+	args2[i] = args[i];
+	printf("%s\n", args2[i]);
 }
 }
 
@@ -218,7 +220,11 @@ int main(int argc, char** argv)
                  * */
     	args = parse(args);
     	if(args == NULL) continue;
-	if(f->pipe >= 0)excutePipe(args);
+	if(f->pipe >= 0)
+	{
+		excutePipe(args);
+		continue;
+	}
     	pid_t pid = fork();
     	switch(pid)
     	{
