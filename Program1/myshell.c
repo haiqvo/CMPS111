@@ -39,7 +39,6 @@ void type_prompt(char* id)
    printf("%s# ", id);
 }
 
-
 void kchild(int sig)
 {
     if(f->background == 0)return;
@@ -92,7 +91,6 @@ char** parse(char** args)
 	}
 	return ret;
 }
-
 
 char* strip_path(char* path)
 {
@@ -206,10 +204,6 @@ int main(int argc, char** argv)
 	while(1) 
 	{
 		type_prompt(id);
-		
-		//freopen("/dev/tty", "w", stdout);
-		//freopen("/dev/tty", "r", stdin);
-		
 		args = get_line();
                 /*
 		printf("Argument list:\n");
