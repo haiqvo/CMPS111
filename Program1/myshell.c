@@ -20,7 +20,7 @@ struct condition_flags
 	bool background;// &
 	char* out;// >
 	char* in;// <
-	bool pipe;// |
+	int pipe;// |
 };
 typedef struct condition_flags *flags;
 flags f;
@@ -76,6 +76,7 @@ char** parse(char** args)
 					if(args[++i] != NULL) f->in = strdup(args[i]);//freopen(args[i], "r", stdin);//else error
 					break;
 				case '|':
+					//printf("the value of i is: %d\n", i);
 					f->pipe = i;
 					break;
 				default:
@@ -176,17 +177,25 @@ void excutePipe(char** args){
 char** args1 = malloc(sizeof(char*)*10);
 char** args2 = malloc(sizeof(char*)*10);
 int i;
+int j = 0;
+/*
+printf("actually\n");
+for(i = 0; args[i] != NULL; i++){
+	printf("%d:%s\n", i, args[i]);
+}
+*/
 printf("args1:\n");
-for(i = 0; i<=f->pipe; i++)
+
+for(i = 0; i<f->pipe; i++)
 {
 	args1[i] = args[i]; 
 	printf("%s\n", args1[i]);
 }
 printf("args2:\n");
-for(i = f->pipe+1; args[i]!=NULL; i++)
+for(i = f->pipe; args[i]!=NULL; i++ , j++)
 {
-	args2[i] = args[i];
-	printf("%s\n", args2[i]);
+	args2[j] = args[i];
+	printf("%s\n", args2[j]);
 }
 }
 
@@ -197,6 +206,7 @@ int main(int argc, char** argv)
 	
 	int status;
 	id = strip_path(argv[0]);
+	
 	f = init_flags();
 	int i;
 	char **args;
@@ -214,6 +224,7 @@ int main(int argc, char** argv)
                  * */
     	args = parse(args);
     	if(args == NULL) continue;
+	
 	if(f->pipe >= 0)
 	{
 		excutePipe(args);
