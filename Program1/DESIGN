@@ -2,14 +2,26 @@ Purpose:Create a shell that has some basic commands. The goal up-to-date with sy
 
 Assumptions:
 1. Input will be by keyboard.
+2. Commands based on POSIX systems
 
-2. 
-
+ 
 Data:
+
+No data was used. Command based input.
+
 
 Operations:
 
-1.exit() 
-	exits the shell
+1.execute(char**)
+	-Runs execvp
+	-Checks every path for specified file defined by the environment
+	-Calls set_standard which does the redirects
+
+2.parse(char**)
+	-Parses command input for special characters: <>|&
+	-Sets the args to be used for execute
+
 
 Algorithms:
+	
+No algorithms were needed.

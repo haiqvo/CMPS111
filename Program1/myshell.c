@@ -11,27 +11,25 @@
 extern char **get_line();
 extern char **environ;
 char* id;
+//const char* sys_errlist[];
+int sys_nerr;
+int errno;
 
 typedef void (*sighandler_t)(int);
 sighandler_t old_sig;
 
-struct condition_flags
-{
-	bool background;// &
-	char* out;// >
-	char* in;// <
-	int pipe;// |
-};
-typedef struct condition_flags *flags;
-flags f;
 
-flags init_flags(void)
+bool back_flag;
+char* re_out;
+char* re_in;
+int pipe_count;
+
+void init_flags(void)
 {
-	flags ret = malloc(sizeof(struct condition_flags));
-	ret->background = 0;
-	ret->out = NULL;
-	ret->in = NULL;
-	ret->pipe = -1;
+	back_flag = 0;
+	re_out = NULL;
+	re_in = NULL;
+	pipe_count = -1;
 }
 
 void type_prompt(char* id)
@@ -41,21 +39,26 @@ void type_prompt(char* id)
 
 void kchild(int sig)
 {
-    if(f->background == 0)return;
+    if(back_flag == 0)return;
 	pid_t pid;
     while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
     {
-        kill(pid, SIGKILL);//, SIGTERM);
-        f->background--;
+        //kill(pid, SIGKILL);//, SIGTERM);
+        back_flag--;
     }
-        if(f->background == 0)
-            signal(SIGCHLD, old_sig);
-        
-        //type_prompt(id);
+    if(back_flag == 0) signal(SIGCHLD, old_sig);
+    //type_prompt(id);
+}
+
+void cd(char* dir)
+{
+	int er = chdir(dir);
+	if(er == -1) perror("chdir");
 }
 
 char** parse(char** args)
 {
+	if(args[0] == NULL) return NULL;
 	if (!strcmp("exit", args[0])) exit(0);
 	char** ret = malloc(sizeof(char*)*10);
 	int i;
@@ -66,18 +69,20 @@ char** parse(char** args)
 		switch(s[0])
 			{
 				case '&':
-					f->background++;
+					back_flag++;
 					old_sig = signal(SIGCHLD, kchild);
 					break;
 				case '>':
-					if(args[++i] != NULL) f->out = strdup(args[i]);//freopen(args[i], "w", stdout);//else error
+					if(args[++i] != NULL) re_out = strdup(args[i]);//freopen(args[i], "w", stdout);//else error
+					else fprintf(stderr, "Output file path not found. \n");
 					break;
 				case '<':
-					if(args[++i] != NULL) f->in = strdup(args[i]);//freopen(args[i], "r", stdin);//else error
+					if(args[++i] != NULL) re_in = strdup(args[i]);//freopen(args[i], "r", stdin);//else error
+					else fprintf(stderr, "Input file path not found. \n");
 					break;
 				case '|':
 					//printf("the value of i is: %d\n", i);
-					f->pipe = i;
+					pipe_count = i;
 					break;
 				default:
 					ret[j++] = strdup(args[i]);
@@ -85,11 +90,6 @@ char** parse(char** args)
 			}
 	}
 	ret[j+1] = NULL;
-        if(!strcmp(args[0], "cd"))
-	{
-		chdir(args[1]);
-                return NULL;
-	}
 	return ret;
 }
 
@@ -106,18 +106,18 @@ char* strip_path(char* path)
 
 void try_stdout()
 {
-	if(f->out != NULL) 
+	if(re_out != NULL) 
 	{
-		f->out = NULL;
-		freopen("/dev/tty", "a", stdout);
+		re_out = NULL;
+		freopen("/dev/tty", "a", stdout) == NULL;
 	}
 }
 
 void try_stdin()
 {
-	if(f->in != NULL) 
+	if(re_in != NULL) 
 	{
-		f->in = NULL;
+		re_in = NULL;
 		freopen("/dev/tty", "r", stdin);
 	}
 }
@@ -130,8 +130,8 @@ void try_standard()
 
 void set_standard()
 {
-	if(f->out != NULL) freopen(f->out, "w", stdout);
-	if(f->in != NULL) freopen(f->in, "r", stdin);
+	if(re_out != NULL) freopen(re_out, "w", stdout);
+	if(re_in != NULL) freopen(re_in, "r", stdin);
 }
 
 char* extract_path(char* PATH, int n)
@@ -149,8 +149,12 @@ char* extract_path(char* PATH, int n)
 
 void execute(char** args)
 {
-	
 	set_standard();
+	if(!strcmp(args[0], "cd"))
+	{
+		cd(args[1]);
+        return;
+	}
 	int er = execvp(args[0], args);
     char* PATH = getenv("PATH");
     int limit = strlen(PATH);
@@ -168,46 +172,66 @@ void execute(char** args)
         count++;
         if(count > limit) break;
     }
+	perror("execvp");
 	try_standard();
-	printf("Executable file not found->\n");
+	//fprintf(stderr,"Executable file not found->\n");
 	exit(1);
 }
 
-void excutePipe(char** args){
-char** args1 = malloc(sizeof(char*)*10);
-char** args2 = malloc(sizeof(char*)*10);
-int i;
-int j = 0;
-/*
-printf("actually\n");
-for(i = 0; args[i] != NULL; i++){
-	printf("%d:%s\n", i, args[i]);
-}
-*/
-printf("args1:\n");
 
-for(i = 0; i<f->pipe; i++)
+void execute_pipe(char** args)
 {
-	args1[i] = args[i]; 
-	printf("%s\n", args1[i]);
-}
-printf("args2:\n");
-for(i = f->pipe; args[i]!=NULL; i++ , j++)
-{
-	args2[j] = args[i];
-	printf("%s\n", args2[j]);
-}
+	char** args1 = malloc(sizeof(char*)*10);
+	char** args2 = malloc(sizeof(char*)*10);
+	int i;
+	for(i = 0; i<pipe_count; i++)
+	{
+		args1[i] = args[i]; 
+	}
+	int j;
+	for(i = pipe_count, j = 0; args[i]!=NULL; i++, j++)
+	{
+		args2[i] = args[i];
+	}
+	int fd[2];// 0 = read, 1 = write
+	pipe(fd);
+	pid_t pid = fork();
+	switch(pid)
+	{
+		case 0://child
+			printf("Hello\n");
+			close(fd[0]);
+			dup2(fd[1], fileno(stdout));
+			execute(args1);
+			break;
+		case -1://error
+    		printf("fork 1 failed->\n");
+    		exit(1);
+    	default:
+		wait(NULL);
+    		close(fd[1]);
+    		pid = fork();
+    		switch(pid)
+    		{
+    			case 0:
+				printf("World\n");
+    				dup2(fd[0], fileno(stdin));
+    				execute(args2);
+    				break;
+    			case -1://error
+    				printf("fork 2 failed->\n");
+    				exit(1);
+    			default:
+    				break;
+    		}
+    	}
 }
 
 int main(int argc, char** argv) 
-{
-	/*char* PATH = getenv("PATH");
-	printf("PATH=%s\n",PATH);*/
-	
+{	
 	int status;
 	id = strip_path(argv[0]);
-	
-	f = init_flags();
+	init_flags();
 	int i;
 	char **args;
 
@@ -215,21 +239,12 @@ int main(int argc, char** argv)
 	{
 		type_prompt(id);
 		args = get_line();
-                /*
-		printf("Argument list:\n");
-		for(i = 0; args[i] != NULL; i++)
-		{
-			printf("%s\n", args[i]);
-		}
-                 * */
     	args = parse(args);
-    	if(args == NULL) continue;
-	
-	if(f->pipe >= 0)
-	{
-		excutePipe(args);
-		continue;
-	}
+		if(pipe_count >= 0)
+		{
+			execute_pipe(args);
+			continue;
+		}
     	pid_t pid = fork();
     	switch(pid)
     	{
@@ -241,10 +256,10 @@ int main(int argc, char** argv)
     			printf("fork failed->\n");
     			exit(1);
     		default:
-    			if(!f->background) 
+    			if(!back_flag) 
     			{
     				wait(&status);
-    				fprintf(stderr, "Child process \"%s\" terminated\n", args[0]);
+    				//fprintf(stderr, "Child process \"%s\" terminated\n", args[0]);
     			}
     			//try_standard(f);
     	}
