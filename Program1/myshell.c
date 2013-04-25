@@ -43,11 +43,9 @@ void kchild(int sig)
 	pid_t pid;
     while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
     {
-        //kill(pid, SIGKILL);//, SIGTERM);
         back_flag--;
     }
     if(back_flag == 0) signal(SIGCHLD, old_sig);
-    //type_prompt(id);
 }
 
 void cd(char* dir)
@@ -58,7 +56,7 @@ void cd(char* dir)
 
 char** parse(char** args)
 {
-	if(args[0] == NULL) return NULL;
+	if (args[0] == NULL) return NULL;
 	if (!strcmp("exit", args[0])) exit(0);
 	char** ret = malloc(sizeof(char*)*10);
 	int i;
@@ -73,12 +71,12 @@ char** parse(char** args)
 					old_sig = signal(SIGCHLD, kchild);
 					break;
 				case '>':
-					if(args[++i] != NULL) re_out = strdup(args[i]);//freopen(args[i], "w", stdout);//else error
-					else fprintf(stderr, "Output file path not found. \n");
+					if(args[++i] != NULL) re_out = strdup(args[i]);//else error
+					else fprintf(stderr, "Output file path not found.\n");
 					break;
 				case '<':
-					if(args[++i] != NULL) re_in = strdup(args[i]);//freopen(args[i], "r", stdin);//else error
-					else fprintf(stderr, "Input file path not found. \n");
+					if(args[++i] != NULL) re_in = strdup(args[i]);//else error
+					else fprintf(stderr, "Input file path not found.\n");
 					break;
 				case '|':
 					//printf("the value of i is: %d\n", i);
@@ -104,28 +102,18 @@ char* strip_path(char* path)
 	if(slash != NULL) return strdup(slash + 1);
 }
 
-void try_stdout()
+void try_standard()
 {
 	if(re_out != NULL) 
 	{
 		re_out = NULL;
 		freopen("/dev/tty", "a", stdout) == NULL;
 	}
-}
-
-void try_stdin()
-{
 	if(re_in != NULL) 
 	{
 		re_in = NULL;
 		freopen("/dev/tty", "r", stdin);
 	}
-}
-
-void try_standard()
-{
-	try_stdout();
-	try_stdin();
 }
 
 void set_standard()
@@ -172,9 +160,7 @@ void execute(char** args)
         count++;
         if(count > limit) break;
     }
-	perror("execvp");
-	try_standard();
-	//fprintf(stderr,"Executable file not found->\n");
+    perror("execvp");
 	exit(1);
 }
 
@@ -205,7 +191,7 @@ void execute_pipe(char** args)
 			execute(args1);
 			break;
 		case -1://error
-    		printf("fork 1 failed->\n");
+    		printf("fork 1 failed\n");
     		exit(1);
     	default:
 		wait(NULL);
@@ -219,12 +205,12 @@ void execute_pipe(char** args)
     				execute(args2);
     				break;
     			case -1://error
-    				printf("fork 2 failed->\n");
+    				printf("fork 2 failed\n");
     				exit(1);
     			default:
     				break;
     		}
-    	}
+    }
 }
 
 int main(int argc, char** argv) 
@@ -239,6 +225,7 @@ int main(int argc, char** argv)
 	{
 		type_prompt(id);
 		args = get_line();
+		if(args == NULL) continue;
     	args = parse(args);
 		if(pipe_count >= 0)
 		{
@@ -253,15 +240,13 @@ int main(int argc, char** argv)
     			exit(1);
     			break;
     		case -1://error
-    			printf("fork failed->\n");
+    			printf("fork failed\n");
     			exit(1);
     		default:
     			if(!back_flag) 
     			{
     				wait(&status);
-    				//fprintf(stderr, "Child process \"%s\" terminated\n", args[0]);
     			}
-    			//try_standard(f);
     	}
   	}
 }
