@@ -172,22 +172,26 @@ void execute_pipe(char** args)
 	int i;
 	for(i = 0; i<pipe_count; i++)
 	{
-		args1[i] = args[i]; 
+		args1[i] = args[i];
 	}
 	int j;
 	for(i = pipe_count, j = 0; args[i]!=NULL; i++, j++)
 	{
-		args2[i] = args[i];
+		args2[j] = args[i];
 	}
+	args1[i] = NULL;
+	args2[j+1] = NULL;
+	pipe_count = 0;
 	int fd[2];// 0 = read, 1 = write
 	pipe(fd);
 	pid_t pid = fork();
+
 	switch(pid)
 	{
 		case 0://child
-			printf("Hello\n");
 			close(fd[0]);
 			dup2(fd[1], fileno(stdout));
+			close(fd[1]);
 			execute(args1);
 			break;
 		case -1://error
@@ -200,9 +204,10 @@ void execute_pipe(char** args)
     		switch(pid)
     		{
     			case 0:
-				printf("World\n");
     				dup2(fd[0], fileno(stdin));
+				close(fd[0]);
     				execute(args2);
+				
     				break;
     			case -1://error
     				printf("fork 2 failed\n");
@@ -226,7 +231,7 @@ int main(int argc, char** argv)
 		type_prompt(id);
 		args = get_line();
 		if(args == NULL) continue;
-    	args = parse(args);
+    		args = parse(args);
 		if(pipe_count >= 0)
 		{
 			execute_pipe(args);
