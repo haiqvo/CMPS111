@@ -1,2 +1,24 @@
+********************************************************
+README
+********************************************************
+Project: Custom Shell
 
-test test
+Author : Erik Swedberg, Hai Vo, and Justin Yeo
+
+Files include : DESIGN, lex.c,  Makefile, myshell.c, and README
+
+--------------------------------------------------------
+How To Run
+--------------------------------------------------------
+The shell uses signal which will only work in unix and
+not minix.
+Make sure all of the files are in one folder and type 'make'
+
+--------------------------------------------------------
+IMPORTANT
+--------------------------------------------------------
+This shell has been programmed and test on Unix and will
+work for Unix and not Minix.
+The pipe ("|") works for only 2 commands and will not work
+for any more (ex: ls -l | sort is OK) (ex: ls -l | sort | ls is not OK)
+ 

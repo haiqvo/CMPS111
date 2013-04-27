@@ -1,3 +1,7 @@
+My Custom Shell
+
+Author : Erik Swedberg, Hai Vo, and Justin Yeo
+
 Purpose:Create a shell that has some basic commands. The goal up-to-date with system programming. 
 
 Assumptions:
@@ -20,6 +24,11 @@ Operations:
 2.parse(char**)
 	-Parses command input for special characters: <>|&
 	-Sets the args to be used for execute
+
+3.execute_pipe(char**)
+	-Runs the first command and feeds the output as the input for the second command.
+	-It will still rely on execute for the execvp 
+	-have a different fork from the one found in main.
 
 
 Algorithms:
