@@ -1,3 +1,9 @@
+/*
+ * Custom Shell
+ * Author : Erik Swedberg, Hai Vo, and Justin Yeo
+ * A basic shell written in C 
+ * Able to handle &,<,>,|
+ * */
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -11,7 +17,6 @@
 extern char **get_line();
 extern char **environ;
 char* id;
-//const char* sys_errlist[];
 int sys_nerr;
 int errno;
 
@@ -20,11 +25,11 @@ sighandler_t old_sig;
 
 
 bool back_flag;
-char* re_out;
-char* re_in;
-int pipe_count;
+char* re_out;//">"
+char* re_in;//"<"
+int pipe_count;//the store the index of "|"
 
-void init_flags(void)
+void init_flags(void)//initialize all the flags
 {
 	back_flag = 0;
 	re_out = NULL;
@@ -34,30 +39,35 @@ void init_flags(void)
 
 void type_prompt(char* id)
 {
-   printf("%s# ", id);
+   	printf("%s# ", id);
 }
 
-void kchild(int sig)
+void kchild(int sig)//Kill the child process
 {
-    if(back_flag == 0)return;
-	pid_t pid;
-    while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
-    {
-        back_flag--;
-    }
-    if(back_flag == 0) signal(SIGCHLD, old_sig);
+    	if(back_flag == 0)return;
+		pid_t pid;
+    	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
+    	{
+        	back_flag--;
+    	}
+    	if(back_flag == 0) signal(SIGCHLD, old_sig);
 }
 
-void cd(char* dir)
+void cd(char* dir)//the cd
 {
 	int er = chdir(dir);
 	if(er == -1) perror("chdir");
 }
 
-char** parse(char** args)
+char** parse(char** args)//breaks the commands up and checks for special char
 {
 	if (args[0] == NULL) return NULL;
-	if (!strcmp("exit", args[0])) exit(0);
+	if (!strcmp("exit", args[0])) exit(0);//the exit
+	if(!strcmp(args[0], "cd"))// the "cd"
+	{
+		cd(args[1]);
+        	return;
+	}
 	char** ret = malloc(sizeof(char*)*10);
 	int i;
 	int j = 0;
@@ -79,7 +89,6 @@ char** parse(char** args)
 					else fprintf(stderr, "Input file path not found.\n");
 					break;
 				case '|':
-					//printf("the value of i is: %d\n", i);
 					pipe_count = i;
 					break;
 				default:
@@ -87,7 +96,7 @@ char** parse(char** args)
 					break;
 			}
 	}
-	ret[j+1] = NULL;
+	ret[j+1] = NULL;//puts NULL for the execvp
 	return ret;
 }
 
@@ -102,7 +111,7 @@ char* strip_path(char* path)
 	if(slash != NULL) return strdup(slash + 1);
 }
 
-void try_standard()
+void try_standard()//return stream back to user input and output
 {
 	if(re_out != NULL) 
 	{
@@ -116,16 +125,16 @@ void try_standard()
 	}
 }
 
-void set_standard()
+void set_standard()//set stream to the command ">" or "<"
 {
 	if(re_out != NULL) freopen(re_out, "w", stdout);
 	if(re_in != NULL) freopen(re_in, "r", stdin);
 }
 
-char* extract_path(char* PATH, int n)
+char* extract_path(char* PATH, int n)//gets the path 
 {
     int i;
-    for(i = 0; PATH[i] != NULL; i++)
+    for(i = 0; PATH[i] != '\0'; i++)
     {
         if(PATH[i] == ':')
         {
@@ -135,44 +144,39 @@ char* extract_path(char* PATH, int n)
     return strndup(PATH + i, i+1);
 }
 
-void execute(char** args)
+void execute(char** args)//handle the execvp and checks for the binary files
 {
 	set_standard();
-	if(!strcmp(args[0], "cd"))
-	{
-		cd(args[1]);
-        return;
-	}
-	int er = execvp(args[0], args);
-    char* PATH = getenv("PATH");
-    int limit = strlen(PATH);
-    int count = 0;
-    char* dir = extract_path(PATH, count);
-    while(er == -1)
-    {
-        char* dir = extract_path(PATH, count);
-        char* bin = malloc(strlen(dir) + 1 + strlen(args[0]));
+	int er = execvp(args[0], args);//run command if fail goes and checks path
+    	char* PATH = getenv("PATH");
+    	int limit = strlen(PATH);
+    	int count = 0;//makes it so that it goes down all paths
+    	char* dir = extract_path(PATH, count);
+    	while(er == -1)
+    	{
+        	char* dir = extract_path(PATH, count);
+        	char* bin = malloc(strlen(dir) + 1 + strlen(args[0]));
 		strcpy(bin, dir);
-        strcat(bin, "/");
-		strcat(bin, args[0]);
+        	strcat(bin, "/");
+		strcat(bin, args[0]);//adds path to command
 		args[0] = bin;
 		execvp(args[0], args);
-        count++;
-        if(count > limit) break;
-    }
-    perror("execvp");
+        	count++;
+        	if(count > limit) break;
+    	}
+    	perror("execvp");
 	exit(1);
 }
 
 
-void execute_pipe(char** args)
+void execute_pipe(char** args)//the function call when piping
 {
 	char** args1 = malloc(sizeof(char*)*10);
 	char** args2 = malloc(sizeof(char*)*10);
 	int i;
 	for(i = 0; i<pipe_count; i++)
 	{
-		args1[i] = args[i];
+		args1[i] = args[i];//splits the args into 2 args
 	}
 	int j;
 	for(i = pipe_count, j = 0; args[i]!=NULL; i++, j++)
@@ -181,7 +185,6 @@ void execute_pipe(char** args)
 	}
 	args1[i] = NULL;
 	args2[j+1] = NULL;
-	pipe_count = 0;
 	int fd[2];// 0 = read, 1 = write
 	pipe(fd);
 	pid_t pid = fork();
@@ -192,7 +195,7 @@ void execute_pipe(char** args)
 			close(fd[0]);
 			dup2(fd[1], fileno(stdout));
 			close(fd[1]);
-			execute(args1);
+			execute(args1);//the first command
 			break;
 		case -1://error
     		printf("fork 1 failed\n");
@@ -206,52 +209,52 @@ void execute_pipe(char** args)
     			case 0:
     				dup2(fd[0], fileno(stdin));
 				close(fd[0]);
-    				execute(args2);
-				
+    				execute(args2);//the second command
     				break;
     			case -1://error
     				printf("fork 2 failed\n");
     				exit(1);
     			default:
+				wait(NULL);
     				break;
     		}
     }
 }
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)//the main function
 {	
 	int status;
 	id = strip_path(argv[0]);
 	init_flags();
 	int i;
 	char **args;
-
-	while(1) 
+	while(1)//keeps shell running until "exit" is called
 	{
 		type_prompt(id);
-		args = get_line();
-		if(args == NULL) continue;
-    		args = parse(args);
-		if(pipe_count >= 0)
+		args = get_line();//gets the command
+		if(args == NULL) continue;//if blank do nothing
+    		args = parse(args);//break up the command
+		if(pipe_count >= 0)//handle the execute differently is pipe
 		{
 			execute_pipe(args);
+			pipe_count = 0;
 			continue;
 		}
-    	pid_t pid = fork();
-    	switch(pid)
-    	{
-    		case 0://child
-    			execute(args);
-    			exit(1);
-    			break;
-    		case -1://error
-    			printf("fork failed\n");
-    			exit(1);
-    		default:
-    			if(!back_flag) 
-    			{
-    				wait(&status);
-    			}
-    	}
+    		pid_t pid = fork();
+    		switch(pid)
+    		{
+    			case 0://child
+    				execute(args);
+    				exit(1);
+    				break;
+    			case -1://error
+    				printf("fork failed\n");
+    				exit(1);
+    			default:
+    				if(!back_flag) 
+    				{
+    					wait(&status);
+    				}
+    		}
   	}
 }
