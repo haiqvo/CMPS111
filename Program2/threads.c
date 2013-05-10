@@ -51,7 +51,7 @@ thread_ref make_node(void)
     {
         new->next = thread->next;
         new->next->prev = new;
-        new->prev = thread->next;
+        new->prev = thread;
         thread->next = new;
     }
     return new;
@@ -91,7 +91,6 @@ int main(void) {
 
     // We should never get here
     exit(0);
-    
 }
 
 // This is the thread that gets started by thread_create
@@ -113,8 +112,8 @@ static void test_thread(void) {
         printf("Test_thread %d returned from thread_yield\n", thread->id);
         if(rand()%2) break;
     }
-    
     thread_exit(0);
+    return;
 }
 
 // Yield to another thread
@@ -129,8 +128,8 @@ int thread_yield() {
     
     // This will stop us from running and restart the other thread
     //if(old_thread->id == 0 && thread->id == 0) thread_count = 0;
-    if(old_thread->id != thread->id || thread->id == 0) swapcontext(&old_thread->ctx, &thread->ctx);
-    else exit(1);
+    swapcontext(&old_thread->ctx, &thread->ctx);
+    
     // The other thread yielded back to us
     printf("Thread %d back in thread_yield\n", thread->id);
 }
@@ -172,6 +171,6 @@ void thread_exit(int status) {
     thread_ref prev_thread = oldthread->prev;
     prev_thread->next = next_thread;
     next_thread->prev = prev_thread;
-    thread_yield();
+    //thread_yield();
     //free(oldthread);
 }
