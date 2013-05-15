@@ -11,6 +11,9 @@
 #include <time.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <limits.h>
 
 #define _XOPEN_SOURCE
 #include <ucontext.h>
@@ -36,7 +39,10 @@ static int threads = 0;
 static int thread_count = 0;
 thread_ref main_thread = NULL;
 int refill_counter = 0;
+bool scheduled = false;
 #define REFILL (42)
+
+struct itimerval* thread_timer;
 
 struct thread_array
 {
@@ -164,6 +170,48 @@ thread_ref make_node(void)
 // This is the main thread
 // In a real program, it should probably start all of the threads and then wait for them to finish
 // without doing any "real" work
+void handle_alarm(int sig)
+{
+    thread_schedule();
+}
+
+void create_timer(struct itimerval *value, long time)
+{
+    value = malloc(sizeof(struct itimerval));
+    value->it_interval.tv_sec = 0;//seconds//next value
+    value->it_interval.tv_usec = time;//microseconds
+    value->it_value.tv_sec = 0;//current value
+    value->it_value.tv_usec = time;
+    setitimer(ITIMER_VIRTUAL, value, NULL);
+    signal(SIGVTALRM, handle_alarm);
+}
+
+long fib(int n)
+{
+    if(n == 0) return 0;
+    else if(n == 1) return 1;
+    else 
+    {
+        return fib(n-1) + fib(n-2);
+    }
+}
+
+void fib_thread(void)
+{
+    printf("In fib_thread %d\n", thread->id);
+    int n = rand()%10;
+    printf("fib_thread %d finding fib(%d)\n", thread->id, n);
+    
+    if(n%2)
+    {
+        printf("fib_thread %d calling thread_create\n", thread->id);
+        thread_create(&fib_thread);
+    }
+    
+    long f = fib(n);
+    printf("fib_thread %d finished with %ld\n", thread->id, f);
+    thread_exit(0);
+}
 
 int inc_threads(void)
 {
@@ -185,12 +233,27 @@ int main(void) {
     printf("Main calling thread_create\n");
 
     // Start one other thread
-    thread_create(&test_thread);
+    //thread_create(&test_thread);
+    thread_create(&fib_thread);
     
     printf("Main returned from thread_create\n");
+    create_timer(thread_timer, 100);
 
     // Loop, doing a little work then yielding to the other thread
     while(1) {
+        if(scheduled)
+        {
+            scheduled = false;
+            int rand_num = rand() % 100;
+            if(rand_num > 75)
+            {
+                printf("Main calling thread_create\n");
+                thread_create(&fib_thread);
+                printf("Main returned from thread_create\n");
+            }
+            if(thread_count <= 0) break;
+        }
+        /*
         printf("Main calling thread_yield\n");
         
         //thread_yield();
@@ -199,8 +262,9 @@ int main(void) {
         printf("Main returned from thread_yield\n");
         if(thread_count <= 0) break;
         printf("count: %d\n", thread_count);
+        */
     }
-    printf("All threads finished.\n");
+    printf("%d threads finished.\n", threads);
     exit(0);
 }
 
@@ -269,7 +333,6 @@ thread_ref lotto(tarray tar)
 
 int resize_array(tarray tar, int size)
 {
-    resize = true;
     if(size < tar->end) return -1;
     tar->array = realloc(tar->array, sizeof(thread_ref)*size);
     return 1;
@@ -296,12 +359,13 @@ void refill_array(tarray tar)
 
 int thread_schedule(void)
 {
+    scheduled = true;
     thread_ref old_thread = thread;
     thread_ref next;
     if(!ta->empty) next = lotto(ta);
     else next = dequeue();
     insert_queue(next);
-    if(refill_counter++ >= REFILL)
+    if(++refill_counter >= REFILL)
     {
         refill_array(ta);
     }
@@ -330,8 +394,9 @@ int thread_yield() {
 }
 
 // Create a thread
-int thread_create(int (*thread_function)(void)) {
+int thread_create(void (*thread_function)(void)) {
 
+    if(threads == INT_MAX) return -1;
     int newthread = inc_threads();
     thread_ref new = make_node();
     
@@ -351,7 +416,7 @@ int thread_create(int (*thread_function)(void)) {
     new->ctx.uc_link = &main_thread->ctx;
 
     // Now create the new context and specify what function it should run
-    makecontext(&new->ctx, test_thread, 0);
+    makecontext(&new->ctx, thread_function, 0);
     
     printf("Thread %d done with thread_create\n", thread->id);
 }
