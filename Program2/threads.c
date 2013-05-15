@@ -172,6 +172,7 @@ thread_ref make_node(void)
 // without doing any "real" work
 void handle_alarm(int sig)
 {
+    printf(" %d\n", sig);
     thread_schedule();
 }
 
@@ -188,18 +189,13 @@ void create_timer(struct itimerval *value, long time)
 
 long fib(int n)
 {
-    if(n == 0) return 0;
-    else if(n == 1) return 1;
-    else 
-    {
-        return fib(n-1) + fib(n-2);
-    }
+
 }
 
 void fib_thread(void)
 {
     printf("In fib_thread %d\n", thread->id);
-    int n = rand()%10;
+    int n = rand()%1024;
     printf("fib_thread %d finding fib(%d)\n", thread->id, n);
     
     if(n%2)
@@ -207,9 +203,18 @@ void fib_thread(void)
         printf("fib_thread %d calling thread_create\n", thread->id);
         thread_create(&fib_thread);
     }
-    
-    long f = fib(n);
-    printf("fib_thread %d finished with %ld\n", thread->id, f);
+    int j;
+    unsigned long next;
+    for(j = 0; j<=n; j++){
+        unsigned long i, first = 0, second = 1;
+        next = 0;
+        for(i = 0; i<=n ; i++){
+            next = first + second;
+            first = second;
+            second = next;  
+        }
+    }
+    printf("fib_thread %d finished with %lu\n", thread->id, next);
     thread_exit(0);
 }
 
@@ -230,14 +235,17 @@ int main(void) {
     thread = make_node();
     main_thread = thread;
     insert_queue(delete_tarray(ta, 0));
-    printf("Main calling thread_create\n");
+    int i;
+    for(i = 0; i<=7; i++){
+        printf("Main calling thread_create\n");
 
-    // Start one other thread
-    //thread_create(&test_thread);
-    thread_create(&fib_thread);
-    
-    printf("Main returned from thread_create\n");
-    create_timer(thread_timer, 100);
+        // Start one other thread
+        //thread_create(&test_thread);
+        thread_create(&fib_thread);
+        
+        printf("Main returned from thread_create\n");
+    }
+    create_timer(thread_timer, 10);
 
     // Loop, doing a little work then yielding to the other thread
     while(1) {
@@ -306,6 +314,7 @@ void print_threads(void)
     {
         printf("\ttq:thread: %d\n", thr->id);
         thr = thr->next;
+        if(thr->id == 0) break;
     }
 }
 
@@ -361,10 +370,19 @@ int thread_schedule(void)
 {
     scheduled = true;
     thread_ref old_thread = thread;
-    thread_ref next;
-    if(!ta->empty) next = lotto(ta);
+    thread_ref next = NULL;
+    print_threads();
+    while(next == NULL)
+    {
+        if(!ta->empty) next = lotto(ta);
+        else refill_array(ta);
+    }
+    /*if(!ta->empty) next = lotto(ta);
     else next = dequeue();
-    insert_queue(next);
+    if(next == NULL){
+        printf("next equal NULL\n");
+    }
+    insert_queue(next);*/
     if(++refill_counter >= REFILL)
     {
         refill_array(ta);
@@ -430,4 +448,5 @@ void thread_exit(int status) {
     {
         delete_tarray(ta, thread->index);
     }
+    thread_schedule();
 }
