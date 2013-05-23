@@ -38,20 +38,20 @@ bool scheduled = false;//deprecated
 
 void handle_alarm(int sig)
 {
-	//printf(")> Timer <(\n");//debug statement
-	thread_schedule();
+    //printf(")> Timer <(\n");//debug statement
+    thread_schedule();
 }
 
 struct itimerval* thread_timer;
 void create_timer(struct itimerval *value, long time)
 {
-	value = malloc(sizeof(struct itimerval));
-	value->it_interval.tv_sec = 0;//seconds//next value
-	value->it_interval.tv_usec = time;//microseconds
-	value->it_value.tv_sec = 0;//current value
-	value->it_value.tv_usec = time;
-	setitimer(ITIMER_VIRTUAL, value, NULL);
-	signal(SIGVTALRM, handle_alarm);
+    value = malloc(sizeof(struct itimerval));
+    value->it_interval.tv_sec = 0;//seconds//next value
+    value->it_interval.tv_usec = time;//microseconds
+    value->it_value.tv_sec = 0;//current value
+    value->it_value.tv_usec = time;
+    setitimer(ITIMER_VIRTUAL, value, NULL);
+    signal(SIGVTALRM, handle_alarm);
 }
 
 
@@ -89,58 +89,58 @@ tarray is the structure that holds the active thread_refs.
 
 struct thread_array
 {
-	thread_ref* array;
-	int end;//index after last element of array
-	int size;//capacity of array
-	bool empty;
-	bool full;
-	char* id;//debug info
+    thread_ref* array;
+    int end;//index after last element of array
+    int size;//capacity of array
+    bool empty;
+    bool full;
+    char* id;//debug info
 };
 typedef struct thread_array* tarray;
 
 tarray make_tarray(int size, char* s)
 {
-	tarray new = malloc(sizeof(struct thread_array));
-	new->size = size;
-	new->id = strdup(s);
-	new->end = 0;
-	new->array = malloc(sizeof(thread_ref)*size);
-	new->empty = true;
-	new->full = false;
-	return new;
+    tarray new = malloc(sizeof(struct thread_array));
+    new->size = size;
+    new->id = strdup(s);
+    new->end = 0;
+    new->array = malloc(sizeof(thread_ref)*size);
+    new->empty = true;
+    new->full = false;
+    return new;
 }
 
 int insert_tarray(tarray tar, thread_ref thr)
 {
-	if(tar->full) return -1;//no space
-	tar->array[tar->end] = thr;
-	int ret = tar->end;
-	thr->index = ret;
-	tar->end++;
-	if(tar->end == tar->size) tar->full = true;
-	tar->empty = false;
-	return ret;
+    if(tar->full) return -1;//no space
+    tar->array[tar->end] = thr;
+    int ret = tar->end;
+    thr->index = ret;
+    tar->end++;
+    if(tar->end == tar->size) tar->full = true;
+    tar->empty = false;
+    return ret;
 }
 
 thread_ref delete_tarray(tarray tar, int index)
 {
-	if(tar->empty) return NULL;
-	thread_ref ret = tar->array[index];
-	tar->array[index] = NULL;
-	ret->index = -1;
-	if(++index < tar->end)
-	{
-		int i;
-		for(i = index; i < tar->end; i++)
-		{
-			tar->array[i-1] = tar->array[i];
-			tar->array[i-1]->index = i-1;
-		}
-	}
-	tar->end--;
-	tar->full = false;
-	if(tar->end == 0) tar->empty = true;
-	return ret;
+    if(tar->empty) return NULL;
+    thread_ref ret = tar->array[index];
+    tar->array[index] = NULL;
+    ret->index = -1;
+    if(++index < tar->end)
+    {
+        int i;
+        for(i = index; i < tar->end; i++)
+        {
+            tar->array[i-1] = tar->array[i];
+            tar->array[i-1]->index = i-1;
+        }
+    }
+    tar->end--;
+    tar->full = false;
+    if(tar->end == 0) tar->empty = true;
+    return ret;
 }
 
 /*
@@ -149,9 +149,9 @@ live threads and array size
 */
 int resize_array(tarray tar, int size)
 {
-	if(size < tar->end) return -1;
-	tar->array = realloc(tar->array, sizeof(thread_ref)*size);
-	return 1;
+    if(size < tar->end) return -1;
+    tar->array = realloc(tar->array, sizeof(thread_ref)*size);
+    return 1;
 }
 
 /*
@@ -160,38 +160,38 @@ tqueue is the structure that holds the waiting thread_refs.
 
 struct thread_queue
 {
-	thread_ref head;
-	thread_ref tail;//deprecated
-	char* id;//debug info
+    thread_ref head;
+    thread_ref tail;//deprecated
+    char* id;//debug info
 };
 typedef struct thread_queue* tqueue;
 
 void insert_queue(tqueue que, thread_ref thr)
 {
-	if(que->tail == NULL)
-	{
-		que->head = thr;
-		que->tail = thr;
-		thr->next = thr;
-		thr->prev = thr;
-	}
-	else 
-	{
-		que->tail->next = thr;
-		thr->prev = que->tail;
-		que->tail = thr;
-	}
+    if(que->tail == NULL)
+    {
+        que->head = thr;
+        que->tail = thr;
+        thr->next = thr;
+        thr->prev = thr;
+    }
+    else 
+    {
+        que->tail->next = thr;
+        thr->prev = que->tail;
+        que->tail = thr;
+    }
 }
 
 thread_ref dequeue(tqueue que)
 {
-	if(que->head == NULL) return NULL;
-	thread_ref ret = que->head;
-	que->head = ret->next;
-	if(que->head != NULL)que->head->prev = NULL;
-	else que->tail = NULL;
-	ret->next = NULL;
-	ret->prev = NULL;
+    if(que->head == NULL) return NULL;
+    thread_ref ret = que->head;
+    que->head = ret->next;
+    if(que->head != NULL)que->head->prev = NULL;
+    else que->tail = NULL;
+    ret->next = NULL;
+    ret->prev = NULL;
 }
 
 void empty_queue(tqueue que)
@@ -214,21 +214,21 @@ tqueue inactive;
 //pulls in threads from tq until tarray is full
 void refill_array(tarray tar)
 {
-	refill_counter = 0;
-	if(thread_count >= 4 * tar->size)
-	{
-		resize_array(tar, tar->size * 2);
-	}
-	else if(tar->size > 8 && thread_count < tar->size / 2)
-	{
-		resize_array(tar, tar->size / 2);
-	}
-	while(!tar->full)
-	{
-		thread_ref thr = dequeue(tq);
-		if(thr == NULL) break;
-		insert_tarray(tar, thr);
-	}
+    refill_counter = 0;
+    if(thread_count >= 4 * tar->size)
+    {
+        resize_array(tar, tar->size * 2);
+    }
+    else if(tar->size > 8 && thread_count < tar->size / 2)
+    {
+        resize_array(tar, tar->size / 2);
+    }
+    while(!tar->full)
+    {
+        thread_ref thr = dequeue(tq);
+        if(thr == NULL) break;
+        insert_tarray(tar, thr);
+    }
 }
 
 
@@ -236,7 +236,6 @@ void add_thread(thread_ref thr)
 {
 	if(!ta->full) insert_tarray(ta, thr);
 	else insert_queue(tq, thr);
-
 }
 
 
@@ -350,8 +349,8 @@ void print_threads(void)
 
 int thread_switch(thread_ref next)
 {
-	thread_ref old_thread = thread;
-	
+    thread_ref old_thread = thread;
+    
     thread = next;
 
     printf("Thread %d switching to thread %d\n", old_thread->id, thread->id);
@@ -364,10 +363,10 @@ int thread_switch(thread_ref next)
 
 thread_ref lotto(tarray tar)
 {
-	int index = rand()%tar->end;
-	if(tar->array[index]!=NULL) 
-		return delete_tarray(ta, index);
-	else return NULL;
+    int index = rand()%tar->end;
+    if(tar->array[index]!=NULL) 
+        return delete_tarray(ta, index);
+    else return NULL;
 }
 
 int thread_schedule(void)
@@ -447,7 +446,7 @@ void thread_exit(int status) {
     thread_count--;
     if(thread->index >= 0)
     {
-    	delete_tarray(ta, thread->index);
+        delete_tarray(ta, thread->index);
     }
     else
     {
