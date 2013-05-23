@@ -33,7 +33,7 @@ int inc_threads(void)
 
 int refill_counter = 0;//counter used to tell when to refill the active array
 #define REFILL (42)//refill_counter's limit
-bool scheduled = false;//deprecated
+bool scheduled = false;
 
 
 void handle_alarm(int sig)
@@ -66,7 +66,7 @@ struct thread_node
     int id;//debug info
     int index;//index when in active array, -1 when in queue
     struct thread_node* next;//points to next item in wating queue
-    struct thread_node* prev;//deprecated
+    struct thread_node* prev;
     ucontext_t ctx;
     bool active;//not strictly necessary
 };
@@ -144,24 +144,13 @@ thread_ref delete_tarray(tarray tar, int index)
 }
 
 /*
-increases or decreases array size if there is a large different
-live threads and array size
-*/
-int resize_array(tarray tar, int size)
-{
-    if(size < tar->end) return -1;
-    tar->array = realloc(tar->array, sizeof(thread_ref)*size);
-    return 1;
-}
-
-/*
 tqueue is the structure that holds the waiting thread_refs.
 */
 
 struct thread_queue
 {
     thread_ref head;
-    thread_ref tail;//deprecated
+    thread_ref tail;
     char* id;//debug info
 };
 typedef struct thread_queue* tqueue;
@@ -197,12 +186,6 @@ thread_ref dequeue(tqueue que)
 void empty_queue(tqueue que)
 {
 	thread_ref curr = que->head;
-	/*while(curr != NULL)
-	{
-		thread_ref next = curr->next;
-		//free(curr);
-		curr = next;
-	}*/
 	que->head = NULL;
 	que->tail = NULL;
 }
@@ -215,14 +198,6 @@ tqueue inactive;
 void refill_array(tarray tar)
 {
     refill_counter = 0;
-    if(thread_count >= 4 * tar->size)
-    {
-        resize_array(tar, tar->size * 2);
-    }
-    else if(tar->size > 8 && thread_count < tar->size / 2)
-    {
-        resize_array(tar, tar->size / 2);
-    }
     while(!tar->full)
     {
         thread_ref thr = dequeue(tq);
@@ -256,9 +231,10 @@ void fib_thread(void)
     int j;
     unsigned long next;
     //calculate the fibonacci number giving the thread a process to run so the scheduler can do its job
-    for(j = 0; j <= n + rand()%512; j++){
+    for(j = 0; j <= n * rand()%512; j++){
         unsigned long i, first = 0, second = 1;
         next = 0;
+        printf("fib_thread %d : %lu\n",thread->id, next);
         for(i = 0; i<=n ; i++){
             next = first + second;
             first = second;
@@ -315,37 +291,11 @@ int main(void) {
             }
             if(thread_count <= 0) break;
         }
-        /*
-        printf("Main calling thread_yield\n");
-        
-        //thread_yield();
-        thread_schedule();
-        
-        printf("Main returned from thread_yield\n");
-        if(thread_count <= 0) break;
-        printf("count: %d\n", thread_count);
-        */
     }
     printf("%d threads finished.\n", threads);
     exit(0);
 }
 
-void print_threads(void)
-{
-	int i;
-	printf("ta::\n");
-	for(i = 0; i < ta->end; i++)
-	{
-		printf("\tta:thread: %d\n", ta->array[i]->id);
-	}
-	printf("tq::\n");
-	thread_ref thr = tq->head;
-	while(thr != NULL)
-	{
-		printf("\ttq:thread: %d\n", thr->id);
-		thr = thr->next;
-	}
-}
 
 int thread_switch(thread_ref next)
 {
@@ -371,10 +321,6 @@ thread_ref lotto(tarray tar)
 
 int thread_schedule(void)
 {
-	/*//debug statements
-	printf("]> Schedule <[\n");
-	printf("   Thread count: %d\n", thread_count);
-	*/
 	scheduled = true;
 	empty_queue(inactive);
 	thread_ref old_thread = thread;
@@ -391,23 +337,6 @@ int thread_schedule(void)
 	if(next==NULL) return -1;
 	thread_switch(next);
 	return 1;
-}
-// Yield to another thread
-int thread_yield() {
-    thread_ref old_thread = thread;
-    
-    // This is the scheduler, it is a bit primitive right now
-    thread = thread->next;
-
-    printf("Thread %d yielding to thread %d\n", old_thread->id, thread->id);
-    printf("Thread %d calling swapcontext\n", old_thread->id);
-    
-    // This will stop us from running and restart the other thread
-    //if(old_thread->id == 0 && thread->id == 0) thread_count = 0;
-    swapcontext(&old_thread->ctx, &thread->ctx);
-    
-    // The other thread yielded back to us
-    printf("Thread %d back in thread_yield\n", thread->id);
 }
 
 // Create a thread
