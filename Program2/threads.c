@@ -1,10 +1,8 @@
 //
 //  threads.c
 //  
-//
-//  Created by Scott Brandt on 5/6/13.
-//
-//
+//	Justin Yeo, Hai Vo, Erik Swedberg 
+//  this is a linux-base thread scheduler 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -257,6 +255,7 @@ void fib_thread(void)
     }
     int j;
     unsigned long next;
+    //calculate the fibonacci number giving the thread a process to run so the scheduler can do its job
     for(j = 0; j <= n + rand()%512; j++){
         unsigned long i, first = 0, second = 1;
         next = 0;
@@ -294,10 +293,13 @@ int main(void) {
 
     // Start one other thread
     //thread_create(&test_thread);
-    thread_create(&fib_thread);
+    int i;
+    for(i=0; i<8; i++){
+    	thread_create(&fib_thread);
+	}
     
     printf("Main returned from thread_create\n");
-    create_timer(thread_timer, 100);
+    create_timer(thread_timer, 10);
 
     // Loop, doing a little work then yielding to the other thread
     while(1) {
@@ -326,30 +328,6 @@ int main(void) {
     }
     printf("%d threads finished.\n", threads);
     exit(0);
-}
-
-// This is the thread that gets started by thread_create
-static void test_thread(void) {
-    printf("In test_thread %d\n", thread->id);
-
-    // Loop, doing a little work then yielding to the other thread
-    while(1) {
-        
-        if(rand()%2)
-        {
-            printf("Test_thread %d calling thread_create\n", thread->id);
-            thread_create(&test_thread);
-        }
-        printf("Test_thread %d calling thread_yield\n", thread->id);
-        
-        //thread_yield();
-        thread_schedule();
-        
-        printf("Test_thread %d returned from thread_yield\n", thread->id);
-        if(rand()%2) break;
-    }
-    thread_exit(0);
-    return;
 }
 
 void print_threads(void)
@@ -469,6 +447,14 @@ void thread_exit(int status) {
     if(thread->index >= 0)
     {
     	delete_tarray(ta, thread->index);
+    }
+    else
+    {
+    	thread->prev->next = NULL;
+    	tq->tail = thread->prev;
+    	thread->next = NULL;
+    	thread->prev = NULL;
+
     }
     //thread_schedule();
 }

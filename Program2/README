@@ -1,0 +1,14 @@
+********************************************************
+README
+********************************************************
+Project: Thread Scheduler
+
+Author : Erik Swedberg, Hai Vo, and Justin Yeo
+
+Files include : DESIGN, threads.c,  Makefile, and README
+
+--------------------------------------------------------
+How To Run
+--------------------------------------------------------
+The thread only works in linux.
+Make sure all of the files are in one folder and type 'make'
