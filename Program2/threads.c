@@ -236,6 +236,7 @@ void add_thread(thread_ref thr)
 {
 	if(!ta->full) insert_tarray(ta, thr);
 	else insert_queue(tq, thr);
+
 }
 
 
