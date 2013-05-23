@@ -1,5 +1,5 @@
 threads: threads.o
-  gcc -o threads threads.o -lfl
+	gcc -o threads threads.o -lfl
 
 threads.o: threads.c
 	gcc -c threads.c
