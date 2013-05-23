@@ -1,0 +1,150 @@
+Purpose:
+This document specifies the design of a thread scheduling program. The program creates threads, then randomly chooses between them to schedule processing time between them
+
+
+Assumptions:
+1. Program will be used on linux. Developed and tested on linux.
+
+Rules of Scheduler:
+Scheduler will start with 8 threads, then pick one at random, run the thread, then put it at the back of the queue.  If the array is full and you create a new thread, the thread is placed on the queue. Every so often (42 timer calls) we will refill the array.  If the array is empty, we pull threads off of the queue.
+
+
+Data:
+1. Array
+  -Container for threads to be chosen by lottery
+	-Has thread refs, size of the array, and index of final entry, booleans for empty and full conditions
+	
+2. Queue
+	-Threads that are the spillover from array, also where threads go after being run (so they can wait for their turn to be finished)
+	-Consists of head and tail pointer
+	
+3. Thread Nodes
+	-Contains the context and is set up to be put in either a queue or array and know which it is in.  Also contains thread ID number to maintain uniqueness
+
+Operations:
+1. tarray make_tarray(int, char*)
+   - Description: makes and initializes empty array
+   - Input: size and name(for debugging)
+   - Output: the array itself
+
+2. insert_tarray(tarray, thread_ref)
+   - Description: Adds thread to array
+   - Input: the array of threads, thread to be added
+   - Output: int index that new thread now occupies in array
+   - Result: array has new thread entry
+
+3. delete_tarray(tarray, int)
+   - Description: removes thread element from array
+   - Input: tarray, index of thread to be removed
+   - Output: the thread that was removed
+   
+4. make_node(void)
+   - Description: makes the thread node, initializes it to empty
+   - Input: nothing
+   - Output: a new thread
+   
+5. add_thread(thread_ref)
+   - Description: inserts thread into array if not full, else adds thread into queue
+   - Input: reference to thread to be added
+   - Output: nothing
+   - result: thread is placed where it should be
+   
+6. insert_queue(tqueue, thread_ref)
+   - Description: adds thread reference to back of queue
+   - Input: queue structure, reference to thread to be added
+   - Output: nothing
+   
+7. dequeue(tqueue)
+   - Description: pulls the head off queue, returns it
+   - Input: queue structure
+   - Output: head thread of queue structure
+   
+8. empty_queue(tqueue)
+   - Description: "empties" queue/sets back of queue to head of queue
+   - Input: queue structure
+   - Output: nothing
+   - result: queue is empty
+   
+9. thread_create(*thread_function)
+   - Description: creates a thread
+   - Input: thread function
+   - Output: nothing
+
+10. thread_exit(int)
+   - Description: Exits thread, decriments global thread count, removes thread from array or queue
+   - Input: status (for debugging)
+   - Output: nothing
+   
+11. create_timer(itimerval, long)
+   - Description: Creates a timer, which calls signal handler
+   - Input: additional time interval variable (for debugging/future use), time in microseconds of interval
+   - Output: nothing
+   - result: timer for lottery is set up
+   
+12. handle_alarm(int)
+   - Description: calls thread scheduler
+   - Input: int of signal
+   - Output: nothing
+   
+13. fib_thread(void)
+   - Description: randomly picks a fibonacci number to calculate a random number of times
+   - Input: nothing
+   - Output: nothing
+   - result: prints out fibonacci number
+   
+14. thread_schedule(void)
+   - Description: coordinates lottery scheduling, picks random thread between array/queue
+   - Input: nothing
+   - Output: debugging variable
+   - result: threads are run on lottery scheduling
+   
+15. thread_switch(thread_ref)
+   - Description: Switches the running thread
+   - Input: reference to thread to be switched to
+   - Output: nothing
+   
+16. lotto(tarray)
+   - Description: picks a random thread in the array and returns it
+   - Input: array structure
+   - Output: reference to thread to be run next
+  
+17. refill_array(tarray)
+   - Description: pulls as many threads from queue as it can until array is full
+   - Input: array structure
+   - Output: nothing
+   - result: array is refilled
+   
+
+Algorithms:
+
+Lottery Scheduler algorithm:
+1.  Seeds Rand
+2.  Initializes array and queue
+3.  Makes node for main (in queue)
+4.  Fills array with threads
+5.  Creates timer
+6.  While loop that runs until all threads are finished, also has random chance of creating new threads
+7.  Ends main
+
+fib_thread algorithm:
+1.  Picks randomly a number to fibonacci up to
+2.  If that number is odd, create new thread
+3.  Runs fibonacci a random number of times
+4.  Exits
+
+thread_schedule Algorithm:
+1.  Empties the inactive threads
+2.  Picks a new thread to run randomly from array by lottery if array is not empty
+3.  If array is empty, picks head of queue
+4.  If refill counter has reached limit, refill array
+5.  Switches to that thread that was picked
+
+delete_tarray Algorithm:
+1.  Removes specified thread from array
+2.  Compresses array by looping through for all indices after specified thread, copying contents one index backward
+3.  Reduces end variable by one
+
+thread_exit Algorithm:
+1.  Reduces global thread count
+2.  Removes thread from queue or array, whichever thread was in
+
