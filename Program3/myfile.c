@@ -53,7 +53,6 @@ int char_num(int n, unsigned char* array)
 int write_array(disk_t disk, address add, unsigned char* array)
 {	
 	printf("Entering write_array\nArray: %s\n", array);
-	print_disk(disk, disk->size);
 	unsigned char* databuf = malloc(sizeof(unsigned char)*disk->block_size);
 	readblock(disk, add->block, databuf);
 	int i = 0;
@@ -115,6 +114,9 @@ int init_fsys(disk_t disk, int size)
 	}
 	databuf[j] = '\0';//free block map end
 	printf("databuf: %s\n", databuf);
+	//for(i = 0; i < disk->size; i++) {
+	//	writeblock(disk, i, databuf);
+	//}
 	int ret = write_array(disk, make_address(0, disk->block_size), databuf);
 	printf("ret: %d\n", ret);
 	return 0;
