@@ -28,9 +28,12 @@ address make_address(int add, int block_size)
 	return ret;
 }
 
-int char_num(int n, unsigned char* array)
+int char_num(int n, unsigned char** array)
 {
+	int count = 0;
+	printf("Entering char_num with %d\n", n);
 	unsigned char* temp = malloc(sizeof(unsigned char)*256);
+	printf("count:%d\n",count++);//0
 	int i = 0;
 	while(n)
 	{
@@ -40,18 +43,27 @@ int char_num(int n, unsigned char* array)
 		assert(mod<256);
 		temp[i++] = (unsigned char)mod;
 	}
-	array = malloc(sizeof(unsigned char)*i);
+	printf("count:%d\n",count++);//1
+	*array = malloc(sizeof(unsigned char)*i);
 	int j = 0;
-	for(;i >= 0; i--)
+	printf("count:%d\n",count++);//2
+	for(i--;i >= 0; i--)
 	{
-		array[j++] = temp[i];
+		printf("i:%d\n",i);
+		printf("j:%d\n",j);
+		*array[j++] = temp[i];
 	}
+	printf("count:%d\n",count++);//3
 	free(temp);
+	printf("Ending char_num with ");
+	for(i = 0; i < j; i++) printf("%c",*array[i]);
+	printf("count:%d\n",count++);//4
+	printf("\n");
 	return j;
 }
 
 int write_array(disk_t disk, address add, unsigned char* array)
-{	
+{
 	printf("Entering write_array\nArray: %s\n", array);
 	unsigned char* databuf = malloc(sizeof(unsigned char)*disk->block_size);
 	readblock(disk, add->block, databuf);
@@ -61,14 +73,18 @@ int write_array(disk_t disk, address add, unsigned char* array)
 	int block = add->block;
 	while(1)
 	{
-		if(array[i+1] == '\0') return 0;	
 		databuf[j++] = array[i++];
+		if(array[i] == '\0') 
+		{
+			writeblock(disk, block, databuf);
+			return 0;
+		}
 		if(j == limit)
 		{
 			writeblock(disk, block++, databuf);
 			limit = limit + disk->block_size;
 			j = 0;
-			if(block > disk->last_block) return -1;
+			if(block > disk->size) return -1;
 			readblock(disk, block, databuf);
 		}
 	}
@@ -77,13 +93,11 @@ int write_array(disk_t disk, address add, unsigned char* array)
 int init_fsys(disk_t disk, int size)
 {
 	unsigned char* disk_size;
-	int len = char_num(size, disk_size);
+	int len = char_num(size, &disk_size);
 	address free_blocks = make_address(len, disk->block_size);
-	int mod = size%disk->block_size;
-	int free_size = size/disk->block_size;
-
-	int free_block_count = free_size;
-	if(mod) free_block_count++;
+	//int mod = size%disk->block_size;
+	int free_size = size;
+	int free_block_count = size/disk->block_size + 1;
 
 	address root = make_address(free_blocks->address + free_size, disk->block_size);
 	address data = make_address(root->address + 1, disk->block_size);
@@ -101,24 +115,49 @@ int init_fsys(disk_t disk, int size)
 	}
 
 	free(databuf);//realloc	
-	databuf = malloc(sizeof(unsigned char)*free_size);	
+	databuf = malloc(sizeof(unsigned char)*free_size);
+	
 
-	for(i = 0; i <= data->block; i++)//free block map start
+	databuf[0] = 'i';
+	printf("disk_size:%p\n", disk_size);
+	for(i = 0; i < len; i++)
+	{
+		printf("i:%d\n",i);
+		databuf[i] = disk_size[i];
+	}
+	free(disk_size);
+	databuf[i++] = '\n';
+	databuf[i++] = '1';
+	databuf[i++] = '\n';
+	unsigned char* root_block;
+	len = char_num(1 + free_block_count, &root_block);
+	int j;
+	for(j = 0; j < len; j++)
+	{
+		databuf[i++] = root_block[j];
+	}
+	free(root_block);
+	databuf[i++] = '\n';
+	unsigned char* data_block;
+	len = char_num(1 + free_block_count + 1, &data_block);
+	for(j = 0; j < len; j++)
+	{
+		databuf[i++] = data_block[j];
+	}
+	write_array(disk, make_address(0, disk->block_size), databuf);
+	
+	for(i = 0; i < free_block_count + 2; i++)//free block map start
 	{
 		databuf[i] = '1';
 	}
-	int j;
 	for(j = i; j < free_size; j++)
 	{
 		databuf[j] = '0';
 	}
 	databuf[j] = '\0';//free block map end
 	printf("databuf: %s\n", databuf);
-	//for(i = 0; i < disk->size; i++) {
-	//	writeblock(disk, i, databuf);
-	//}
-	int ret = write_array(disk, make_address(0, disk->block_size), databuf);
-	printf("ret: %d\n", ret);
+	int ret = write_array(disk, make_address(1, disk->block_size), databuf);
+	if(ret) printf("ret: %d\n", ret);
 	return 0;
 }
 /*int init_fsys(disk_t disk)
@@ -195,6 +234,7 @@ int main(int argc, char** argv)
 	disk_size = atoi((char*)argv[2]);
 	
 	createdisk(disk_name, disk_size);
+	printf("Disk %s created with size %d\n", disk_name, disk_size);
 	disk = opendisk(disk_name);
 	
 	init_fsys(disk, disk_size);	
