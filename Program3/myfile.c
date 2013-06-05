@@ -45,17 +45,17 @@ struct super_block
 };
 typedef struct super_block* super;
 
-//void write_super(disk_t disk, int size)
+/*void write_super(disk_t disk, int size)
 {
 	
-}
+}*/
 
 super read_super(disk_t disk)
 {
 	super ret = malloc(sizeof(struct super_block));
 	int* intbuf = malloc(sizeof(unsigned char)*disk->block_size);
-	readblock(disk, 0, intbuf);
-	ret->size = make_address(intbuf[0], disk->block_size);
+	readblock(disk, 0, (unsigned char*)intbuf);
+	ret->size = intbuf[0];
 	ret->free_map = make_address(intbuf[1], disk->block_size);
 	ret->root = make_address(intbuf[2], disk->block_size);
 	ret->data = make_address(intbuf[3], disk->block_size);
@@ -64,17 +64,24 @@ super read_super(disk_t disk)
 
 struct file_entry
 {
-	char* name;
+	char c0;
+	char c1;
+	char c2;
+	char c3;
+	char c4;
+	char c5;
+	char c6;
+	char c7;
 	bool directory;
 	int inode;
 };
-typedef file_entry* file;
+typedef struct file_entry* file;
 
 struct directory_block
 {
 	file* files;
 };
-typedef directory_block* directory;
+typedef struct directory_block* directory;
 
 int write_array(disk_t disk, address add, unsigned char* array)
 {
@@ -190,23 +197,23 @@ void print_disk(disk_t disk, int disk_size)
 }
 
 
-void mkdir(disk_t disk, char* name, char* path)
+void makdir(disk_t disk, char* name, char* path)
 {
 	super sup = read_super(disk);
-	char* dir = strtok(path, '/');
+	char* dir = strtok(path, "/");
 	while(dir != NULL)
 	{
 		file* databuf = malloc(sizeof(unsigned char)*disk->block_size);
-		readblock(disk, sup->root->block, databuf);
+		readblock(disk, sup->root->block, (unsigned char*)databuf);
 		int i;
 		for(i = 0; i < disk->block_size/sizeof(struct file_entry);i++)
 		{
 			file temp = databuf[i];
-			if(temp == NULL)//do something
-			if(strcmp(temp->name, dir)
+			if(temp == NULL);//do something
+			if(strcmp(temp->name, dir))
 			{
-				readblock(disk, temp->inode, databuf);
-				dir = strtok(NULL, '/');
+				readblock(disk, temp->inode, (unsigned char*)databuf);
+				dir = strtok(NULL, "/");
 			}
 		}
 	}
