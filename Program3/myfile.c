@@ -305,53 +305,6 @@ int makdir(disk_t disk, char* name, char* path)
 	return -1;
 }
 
-void writefile(disk_t disk, char* name, char* path, int size)
-{
-	opendirectory(disk, path);
-	
-	//make new file
-	file newfile = malloc(sizeof(file));
-	
-	//connect address of file to directory path
-	
-	//setting name
-	if(name[0] != '\0') strcpy(newfile->c0, name[0]); else newfile->c0 = '\0';
-	if(name[1] != '\0') strcpy(newfile->c1, name[1]); else newfile->c1 = '\0';
-	if(name[2] != '\0') strcpy(newfile->c2, name[2]); else newfile->c2 = '\0';
-	if(name[3] != '\0') strcpy(newfile->c3, name[3]); else newfile->c3 = '\0';
-	if(name[4] != '\0') strcpy(newfile->c4, name[4]); else newfile->c4 = '\0';
-	if(name[5] != '\0') strcpy(newfile->c5, name[5]); else newfile->c5 = '\0';
-	if(name[6] != '\0') strcpy(newfile->c6, name[6]); else newfile->c6 = '\0';
-	if(name[7] != '\0') strcpy(newfile->c7, name[7]); else newfile->c7 = '\0';
-
-	//set boolean to file (false)
-	newfile->directory = false;
-	
-	
-	//find open block number and set inode number to that
-	file->inode = get_free_block(disk);
-	
-	//make an inode
-	inode newinode = malloc(sizeof(inode));
-	newinode->size = 1; //hard code for now (?)
-	//put inode number into file_entry
-	
-	int index = 0;
-	int curropenblock = 0;
-	//loop start until run out of input
-	unsigned char* inputdatabuf = malloc(disk->block_size);
-	int i;
-	for(i = 0; i < size; i++){
-		newinode->blockarray[i] = get_free_block(disk);
-		//now write next block to newinode->blockarray[i]
-	}
-	
-	//inode is filled with block numbers now
-	//now add inode to file
-	writeblock(disk, file->inode, unsigned char *databuf); 
-	
-}
-
 int opendirectory(disk_t disk, char* path){
 
 	super sup = read_super(disk);
@@ -379,6 +332,53 @@ int opendirectory(disk_t disk, char* path){
 	}
 	
 	return curr;
+}
+
+void writefile(disk_t disk, char* name, char* path, int size)
+{
+	opendirectory(disk, path);
+	
+	//make new file
+	file newfile = malloc(sizeof(file));
+	
+	//connect address of file to directory path
+	
+	//setting name
+	if(name[0] != '\0') newfile->c0 = name[0]; else newfile->c0 = '\0';
+	if(name[1] != '\0') newfile->c1 = name[1]); else newfile->c1 = '\0';
+	if(name[2] != '\0') newfile->c2 = name[2]); else newfile->c2 = '\0';
+	if(name[3] != '\0') newfile->c3 = name[3]); else newfile->c3 = '\0';
+	if(name[4] != '\0') newfile->c4 = name[4]); else newfile->c4 = '\0';
+	if(name[5] != '\0') newfile->c5 = name[5]); else newfile->c5 = '\0';
+	if(name[6] != '\0') newfile->c6 = name[6]); else newfile->c6 = '\0';
+	if(name[7] != '\0') newfile->c7 = name[7]); else newfile->c7 = '\0';
+
+	//set boolean to file (false)
+	newfile->directory = false;
+	
+	
+	//find open block number and set inode number to that
+	file->inode = get_free_block(disk);
+	
+	//make an inode
+	inode newinode = malloc(sizeof(inode));
+	newinode->size = 1; //hard code for now (?)
+	//put inode number into file_entry
+	
+	int index = 0;
+	int curropenblock = 0;
+	//loop start until run out of input
+	unsigned char* inputdatabuf = malloc(disk->block_size);
+	int i;
+	for(i = 0; i < size; i++){
+		newinode->blockarray[i] = get_free_block(disk);
+		//now write next block to newinode->blockarray[i]
+	}
+	
+	//inode is filled with block numbers now
+	//now add inode to file
+	writeblock(disk, file->inode, unsigned char *databuf); 
+	
 }
 
 
