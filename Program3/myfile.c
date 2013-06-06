@@ -72,8 +72,10 @@ struct file_entry
 	char c5;
 	char c6;
 	char c7;
+	char cn;
 	bool directory;
 	int inode;
+	int size;
 };
 typedef struct file_entry* file;
 
@@ -126,6 +128,35 @@ void set_free_blocks(disk_t disk, address free_map, int block, int block_count, 
 	write_array(disk, temp, databuf);
 }
 
+void set_block(disk_t disk, int block, char set)
+{
+	super sup = read_super(disk);
+	address temp = make_address(sup->free_map->address + block - 1, disk->block_size);
+	unsigned char* databuf = &set;
+	write_array(disk, temp, databuf);
+}
+
+int get_free_block(disk_t disk)
+{
+	super sup = read_super(disk);
+	int free_block_count = sup->size/disk->block_size + 1;
+	unsigned char* databuf = malloc(sizeof(unsigned char)*disk->block_size*free_block_count);
+	int i;
+	for(i = 0; i < free_block_count; i++)
+	{
+		readblock(disk, i, databuf + disk->block_size*i);
+	}
+	for(i = 0; i < free_block_count*disk->block_size; i++)
+	{
+		if(databuf[i] == '0') 
+		{
+			set_block(disk, i, '1');
+			return i;
+		}
+	}
+	return -1;
+} 
+
 int init_fsys(disk_t disk, int size)
 {
 	address free_blocks = make_address(disk->block_size + 1, disk->block_size);
@@ -174,6 +205,27 @@ int init_fsys(disk_t disk, int size)
 	printf("databuf: %s\n", databuf);
 	int ret = write_array(disk, free_blocks, databuf);
 	if(ret) printf("ret: %d\n", ret);
+	
+	//init root
+	int file_count = disk->block_size/sizeof(struct file_entry);
+	file filebuf = calloc(file_count, sizeof(struct file_entry));
+	filebuf = realloc(filebuf, sizeof(unsigned char)*disk->block_size);
+	for(i = 0; i < disk->block_size/sizeof(struct file_entry); i++)
+	{
+		filebuf[i].c0 = '\0';
+		filebuf[i].c1 = '\0';
+		filebuf[i].c2 = '\0';
+		filebuf[i].c3 = '\0';
+		filebuf[i].c4 = '\0';
+		filebuf[i].c5 = '\0';
+		filebuf[i].c6 = '\0';
+		filebuf[i].c7 = '\0';
+		filebuf[i].cn = '\0';
+		filebuf[i].directory = true;
+		filebuf[i].inode = -1;
+		filebuf[i].size = -1;
+	}
+	writeblock(disk, root->block, (unsigned char*)databuf);
 	return 0;
 }
 
@@ -196,27 +248,54 @@ void print_disk(disk_t disk, int disk_size)
 	}
 }
 
-
-void makdir(disk_t disk, char* name, char* path)
+file opendir(disk_t disk, char* name, file* databuf)
 {
-	super sup = read_super(disk);
-	char* dir = strtok(path, "/");
-	while(dir != NULL)
+	int i;
+	for(i = 0; i < disk->block_size/sizeof(struct file_entry); i++)
 	{
-		file* databuf = malloc(sizeof(unsigned char)*disk->block_size);
-		readblock(disk, sup->root->block, (unsigned char*)databuf);
-		int i;
-		for(i = 0; i < disk->block_size/sizeof(struct file_entry);i++)
+		file ret = &((*databuf)[i]);
+		if(strcmp(&(ret->c0), "\0")) return NULL;
+		if(strcmp(&(ret->c0), name))
 		{
-			file temp = databuf[i];
-			if(temp == NULL);//do something
-			if(strcmp(temp->name, dir))
-			{
-				readblock(disk, temp->inode, (unsigned char*)databuf);
-				dir = strtok(NULL, "/");
-			}
+			readblock(disk, ret->inode, (unsigned char*)(*databuf));
+			return ret;
 		}
 	}
+}
+int makdir(disk_t disk, char* name, char* path)
+{
+	super sup = read_super(disk);
+	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
+	readblock(disk, sup->root->block, (unsigned char*)(databuf));
+	char* dir;
+	if(strcmp(path, "/")) dir = NULL;
+	else dir = strtok(path, "/");
+	
+	file op = NULL;
+	while(dir != NULL)
+	{
+		op = opendir(disk, dir, &databuf);
+		dir = strtok(NULL, "/");
+	}
+	int i;
+	for(i = 0; i < disk->block_size/sizeof(struct file_entry); i++)
+	{
+		file temp = &databuf[i];
+		if(strcmp(&(temp->c0), "\0"))
+		{
+			file new = &databuf[i];
+			strcpy(&new->c0, name);
+			new->directory = true;
+			int block = get_free_block(disk);
+			new->inode = block;
+			int wblock = 0;
+			if(op != NULL) wblock = op->inode;
+			else wblock = sup->root->block;
+			writeblock(disk, wblock, (unsigned char*)databuf);
+			return block;
+		}
+	}
+	return -1;
 }
 
 int main(int argc, char** argv)
@@ -249,7 +328,7 @@ int main(int argc, char** argv)
 
 	print_disk(disk, disk_size);
 
-	printf("Checking superblock\n");
+	printf("\nChecking superblock\n");
 	databuf = malloc(disk->block_size);
 	readblock(disk, 0, databuf);
 	for(i = 0; i < 4; i++)
@@ -257,8 +336,8 @@ int main(int argc, char** argv)
 		printf("%d:%d\n",i,((int*)databuf)[i]);
 	}
 
-	printf("Checking set_free_blocks\n");
-	set_free_blocks(disk, make_address(((int*)databuf)[1], disk->block_size), 4, 1, '1');
+	printf("\nChecking makdir\n");
+	makdir(disk, "test", "/");
 	print_disk(disk, disk_size);
 	exit(0);
 }
