@@ -13,7 +13,7 @@ void print_disk(disk_t, int);
 struct i_node
 {
 	int size;  //size to make block array
-	int* blockarray;
+	int blockarray;
 }
 typedef struct i_node* inode
 
@@ -314,18 +314,19 @@ int opendirectory(disk_t disk, char* path){
 	int curr = sup->root->block;
 	
 	while(dir != NULL){
-		file* databuf = malloc(sizeof(unsigned char)*disk->block_size);
+		file databuf = malloc(sizeof(unsigned char)*disk->block_size);
 		readblock(disk, curr, (unsigned char*) databuf);
 		int i;
 		for(i = 0; i < disk->block_size/sizeof(struct file_entry);i++)
 		{
-			file temp = databuf[i];
+			file temp = &databuf[i];
 			if(temp == NULL){
 				perror("File not found");
 				return 0;
 			}
 			if(strcmp(temp->name, dir))
 			{
+				dir = strtok(NULL, "/");
 				curr = temp->inode;
 			}
 		}
@@ -334,9 +335,9 @@ int opendirectory(disk_t disk, char* path){
 	return curr;
 }
 
-void writefile(disk_t disk, char* name, char* path, int size)
+void writefile(disk_t disk, char* name, char* path, char* input)
 {
-	opendirectory(disk, path);
+	int pathAdd = opendirectory(disk, path);
 	
 	//make new file
 	file newfile = malloc(sizeof(file));
@@ -356,30 +357,39 @@ void writefile(disk_t disk, char* name, char* path, int size)
 	//set boolean to file (false)
 	newfile->directory = false;
 	
-	
 	//find open block number and set inode number to that
 	file->inode = get_free_block(disk);
 	
-	//make an inode
-	inode newinode = malloc(sizeof(inode));
-	newinode->size = 1; //hard code for now (?)
 	//put inode number into file_entry
 	
 	int index = 0;
 	int curropenblock = 0;
 	//loop start until run out of input
-	unsigned char* inputdatabuf = malloc(disk->block_size);
-	int i;
+	
+	//make an inode
+	inode inputdatabuf = malloc(disk->block_size);
+	int* temp = &inputdatabuf->blockarray;
+	
+	int size = strlen(input)/512;
+	if(strlen(input)%512 != 0) size++;
+	inputdatabuf->size = size;
+	int i,j;
 	for(i = 0; i < size; i++){
-		newinode->blockarray[i] = get_free_block(disk);
-		//now write next block to newinode->blockarray[i]
+		temp[i] = get_free_block(disk);
+		file databuf = malloc(disk->block_size);
+		for(j =0; j<512;j++){
+			if(input[i*512 + j] == '\0') break;
+			databuf[j] = input[i*512 + j];
+		}
+		//we've filled 512, write that datablock
+		writeblock(disk, temp[i], databuf); 
 	}
 	
 	//inode is filled with block numbers now
 	//now add inode to file
-	writeblock(disk, file->inode, unsigned char *databuf); 
-	
+	writeblock(disk, file->inode, inputdatabuf); 
 }
+
 
 
 void readfile(disk_t disk, char* path){
