@@ -18,6 +18,14 @@ struct block_address
 };
 typedef struct block_address* address;
 
+struct block_address
+{
+	int block;
+	int offset;
+	int address;
+};
+typedef struct block_address* address;
+
 void print_address(address add)
 {
 	printf("block: %d\n", add->block);
