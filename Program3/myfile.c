@@ -10,13 +10,6 @@
 //int writefile(disk_t disk, int block, unsigned char *databuf)
 void print_disk(disk_t, int);
 
-struct i_node
-{
-	int size;  //size to make block array
-	int* blockarray;
-}
-typedef struct i_node* inode
-
 struct block_address
 {
 	int block;
@@ -91,6 +84,13 @@ struct directory_block
 	file* files;
 };
 typedef struct directory_block* directory;
+
+struct i_node
+{
+	int size;
+	int blockarray;
+};
+typedef struct i_node* inode;
 
 int write_array(disk_t disk, address add, unsigned char* array)
 {
@@ -255,7 +255,7 @@ void print_disk(disk_t disk, int disk_size)
 	}
 }
 
-file opendir(disk_t disk, char* name, file* databuf)
+unsigned char* fetch(disk_t disk, char* name, file* databuf)
 {
 	int i;
 	for(i = 0; i < disk->block_size/sizeof(struct file_entry); i++)
@@ -265,15 +265,13 @@ file opendir(disk_t disk, char* name, file* databuf)
 		if(strcmp(&(ret->c0), name))
 		{
 			readblock(disk, ret->inode, (unsigned char*)(*databuf));
-			return ret;
+			return (unsigned char*)ret;
 		}
 	}
 }
-int makdir(disk_t disk, char* name, char* path)
+
+file opendir(disk_t disk, char* path, file* databuf)
 {
-	super sup = read_super(disk);
-	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
-	readblock(disk, sup->root->block, (unsigned char*)(databuf));
 	char* dir;
 	if(strcmp(path, "/")) dir = NULL;
 	else dir = strtok(path, "/");
@@ -281,123 +279,113 @@ int makdir(disk_t disk, char* name, char* path)
 	file op = NULL;
 	while(dir != NULL)
 	{
-		op = opendir(disk, dir, &databuf);
+		op = (file)fetch(disk, dir, databuf);
 		dir = strtok(NULL, "/");
 	}
+	return op;
+}
+
+int find_empty_entry(disk_t disk, file* directory)
+{
+	file databuf = *directory;
 	int i;
 	for(i = 0; i < disk->block_size/sizeof(struct file_entry); i++)
 	{
 		file temp = &databuf[i];
-		if(strcmp(&(temp->c0), "\0"))
+		if(strcmp(&(temp->c0), "\0"))//empty file slot found
 		{
-			file new = &databuf[i];
-			strcpy(&new->c0, name);
-			new->directory = true;
-			int block = get_free_block(disk);
-			new->inode = block;
-			int wblock = 0;
-			if(op != NULL) wblock = op->inode;
-			else wblock = sup->root->block;
-			writeblock(disk, wblock, (unsigned char*)databuf);
-			return block;
+			return i;
 		}
 	}
 	return -1;
 }
 
-void writefile(disk_t disk, char* name, char* path, int size)
+int makdir(disk_t disk, char* name, char* path)
 {
-	opendirectory(disk, path);
-	
-	//make new file
-	file newfile = malloc(sizeof(file));
-	
-	//connect address of file to directory path
-	
-	//setting name
-	if(name[0] != '\0') strcpy(newfile->c0, name[0]); else newfile->c0 = '\0';
-	if(name[1] != '\0') strcpy(newfile->c1, name[1]); else newfile->c1 = '\0';
-	if(name[2] != '\0') strcpy(newfile->c2, name[2]); else newfile->c2 = '\0';
-	if(name[3] != '\0') strcpy(newfile->c3, name[3]); else newfile->c3 = '\0';
-	if(name[4] != '\0') strcpy(newfile->c4, name[4]); else newfile->c4 = '\0';
-	if(name[5] != '\0') strcpy(newfile->c5, name[5]); else newfile->c5 = '\0';
-	if(name[6] != '\0') strcpy(newfile->c6, name[6]); else newfile->c6 = '\0';
-	if(name[7] != '\0') strcpy(newfile->c7, name[7]); else newfile->c7 = '\0';
-
-	//set boolean to file (false)
-	newfile->directory = false;
-	
-	
-	//find open block number and set inode number to that
-	file->inode = get_free_block(disk);
-	
-	//make an inode
-	inode newinode = malloc(sizeof(inode));
-	newinode->size = 1; //hard code for now (?)
-	//put inode number into file_entry
-	
-	int index = 0;
-	int curropenblock = 0;
-	//loop start until run out of input
-	unsigned char* inputdatabuf = malloc(disk->block_size);
-	int i;
-	for(i = 0; i < size; i++){
-		newinode->blockarray[i] = get_free_block(disk);
-		//now write next block to newinode->blockarray[i]
-	}
-	
-	//inode is filled with block numbers now
-	//now add inode to file
-	writeblock(disk, file->inode, unsigned char *databuf); 
-	
-}
-
-int opendirectory(disk_t disk, char* path){
-
 	super sup = read_super(disk);
-	char* dir = strtok(path, "/");
+	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
+	readblock(disk, sup->root->block, (unsigned char*)(databuf));
+	file op = opendir(disk, path, &databuf);
+	if(op == NULL) return -1;
 	
-	//start at root
-	int curr = sup->root->block;
-	
-	while(dir != NULL){
-		file* databuf = malloc(sizeof(unsigned char)*disk->block_size);
-		readblock(disk, curr, (unsigned char*) databuf);
-		int i;
-		for(i = 0; i < disk->block_size/sizeof(struct file_entry);i++)
-		{
-			file temp = databuf[i];
-			if(temp == NULL){
-				perror("File not found");
-				return 0;
-			}
-			if(strcmp(temp->name, dir))
-			{
-				curr = temp->inode;
-			}
-		}
-	}
-	
-	return curr;
-}
-
-
-void readfile(disk_t disk, char* path){
-
-	int inodeNum = opendirectory(disk, path);
-	file* databuf = malloc(sizeof(unsigned char)*disk->block_size);
-	readblock(disk, inodeNum, (unsigned char*) databuf);
-	
-	int i;
-	for(i = 0; i < disk->block_size/sizeof(struct file_entry);i++)
+	int index = find_empty_entry(disk, &databuf);
+	if(index >= 0)
 	{
-		file* filebuf = malloc(sizeof(unsigned char)*disk->block_size);
-		readblock(disk, databuf->blockarray[i], filebuf);
-		printf("Read block %d of file", i);  //how to print path or file name
+		file new = &databuf[index];
+		strcpy(&new->c0, name);
+		new->directory = true;
+		int block = get_free_block(disk);
+		new->inode = block;
+		int wblock = 0;
+		if(op != NULL) wblock = op->inode;
+		else wblock = sup->root->block;
+		writeblock(disk, wblock, (unsigned char*)databuf);
+		return block;
 	}
+	return -1;
 }
 
+int createfile(disk_t disk, char* name, char* path, int size, file* input)
+{
+	file inputbuf = *input;
+	super sup = read_super(disk);
+	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
+	readblock(disk, sup->root->block, (unsigned char*)(databuf));
+	file op = opendir(disk, path, &databuf);
+	if(op == NULL) return -1;
+	
+	int index = find_empty_entry(disk, &databuf);
+	if(index >= 0)
+	{
+		file new = &databuf[index];
+		strcpy(&new->c0, name);
+		new->directory = false;
+		int block = get_free_block(disk);
+		new->inode = block;
+		int wblock = 0;
+		if(op != NULL) wblock = op->inode;
+		else wblock = sup->root->block;
+		writeblock(disk, wblock, (unsigned char*)databuf);
 
+		//create inode
+
+		free(databuf);
+		databuf = malloc(sizeof(unsigned char)*disk->block_size);
+		((inode)databuf)->size = size;
+		int* array = &(((inode)databuf)->blockarray);
+		int i;
+		for(i = 0; i < size; i++)
+		{
+			array[i] = get_free_block(disk);
+			file filebuf = malloc(sizeof(unsigned char)*disk->block_size);
+			memcpy(filebuf, inputbuf, disk->block_size);
+			writeblock(disk, array[i], (unsigned char*)filebuf);
+		}
+		return 1;
+	}
+	return -1;
+}
+
+file readfile(disk_t disk, char* path)
+{
+	super sup = read_super(disk);
+	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
+	readblock(disk, sup->root->block, (unsigned char*)(databuf));
+	file op = opendir(disk, path, &databuf);
+	if(op == NULL) return NULL;
+	else if(op->directory) return NULL;
+	
+	inode inodebuf = (inode)databuf;
+	databuf = malloc(sizeof(unsigned char)*disk->block_size*inodebuf->size);
+	
+	int* array = &inodebuf->blockarray;
+	int i;
+	for(i = 0; i < inodebuf->size; i++)
+	{
+		readblock(disk, array[0], (unsigned char*)(databuf + i*disk->block_size));
+	}
+	return databuf;
+}
 
 int main(int argc, char** argv)
 {
@@ -437,8 +425,28 @@ int main(int argc, char** argv)
 		printf("%d:%d\n",i,((int*)databuf)[i]);
 	}
 
-	printf("\nChecking makdir\n");
+/*	printf("\nChecking makdir\n");
+	printf("\tMaking test\n");
 	makdir(disk, "test", "/");
+	printf("\tMaking alsotest\n");
+	makdir(disk, "alsotest", "/");
 	print_disk(disk, disk_size);
-	exit(0);
+	exit(0);*/
+	
+	printf("\nCheking file created\n");
+	file filebuf = malloc(disk->block_size*2);
+	for(i = 0; i < disk->block_size*2; i++)
+	{
+		((unsigned char*)filebuf)[i] = 't';
+	}
+	createfile(disk, "tester", "/", 2, &filebuf);
+	printf("Reading file\n");
+	unsigned char* red = (unsigned char*)readfile(disk, "/tester");
+	printf("\tPrinting file\n");
+	for(i = 0; i < disk->block_size*2; i++)
+	{
+		printf("I:%d\n",i);
+		printf("\t%c", red[i]);
+	}
+	printf("\n");
 }
