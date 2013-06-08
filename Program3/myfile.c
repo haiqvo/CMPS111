@@ -18,14 +18,6 @@ struct block_address
 };
 typedef struct block_address* address;
 
-struct block_address
-{
-	int block;
-	int offset;
-	int address;
-};
-typedef struct block_address* address;
-
 void print_address(address add)
 {
 	printf("block: %d\n", add->block);
@@ -366,7 +358,7 @@ int createfile(disk_t disk, char* name, char* path, int size, file* input)
 		{
 			array[i] = get_free_block(disk);
 			file filebuf = malloc(sizeof(unsigned char)*disk->block_size);
-			memcpy(filebuf, inputbuf, disk->block_size);
+			memcpy(filebuf, inputbuf+(i*disk->block_size), disk->block_size);
 			writeblock(disk, array[i], (unsigned char*)filebuf);
 		}
 		return 1;
@@ -385,13 +377,13 @@ file readfile(disk_t disk, char* path)
 	
 	inode inodebuf = (inode)databuf;
 	databuf = malloc(sizeof(unsigned char)*disk->block_size*inodebuf->size);
-	
 	int* array = &inodebuf->blockarray;
 	int i;
 	for(i = 0; i < inodebuf->size; i++)
 	{
-		readblock(disk, array[0], (unsigned char*)(databuf + i*disk->block_size));
+		readblock(disk, array[i], (unsigned char*)(databuf + i*disk->block_size));
 	}
+
 	return databuf;
 }
 
@@ -441,13 +433,14 @@ int main(int argc, char** argv)
 	print_disk(disk, disk_size);
 	exit(0);*/
 	
-	printf("\nCheking file created\n");
+	printf("\nChecking file created\n");
 	file filebuf = malloc(disk->block_size*2);
 	for(i = 0; i < disk->block_size*2; i++)
 	{
 		((unsigned char*)filebuf)[i] = 't';
 	}
-	createfile(disk, "tester", "/", 2, &filebuf);
+	int test = createfile(disk, "tester", "/", 2, &filebuf);
+	printf("test :%d\n", test);
 	printf("Reading file\n");
 	unsigned char* red = (unsigned char*)readfile(disk, "/tester");
 	printf("\tPrinting file\n");
