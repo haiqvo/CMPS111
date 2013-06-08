@@ -140,9 +140,13 @@ void set_free_blocks(disk_t disk, address free_map, int block, int block_count, 
 void set_block(disk_t disk, int block, char set)
 {
 	super sup = read_super(disk);
-	address temp = make_address(sup->free_map->address + block - 1, disk->block_size);
-	unsigned char* databuf = &set;
+	//address temp = make_address(sup->free_map->address + block - 1, disk->block_size);
+	address temp = make_address(sup->free_map->address + block, disk->block_size);
+	unsigned char* databuf = malloc(sizeof(unsigned char)*2);
+	databuf[0] = set;
+	databuf[1] = '\0';
 	write_array(disk, temp, databuf);
+	free(databuf);
 }
 
 int get_free_block(disk_t disk)
@@ -150,29 +154,26 @@ int get_free_block(disk_t disk)
 	printf(">>>get_free_block\n");
 	super sup = read_super(disk);
 	int free_block_count = sup->size/disk->block_size + 1;
-	unsigned char* databuf = malloc(sizeof(unsigned char)*disk->block_size*free_block_count);
+	unsigned char* databuf = malloc(sizeof(unsigned char)*disk->block_size);
 	int i;
-	for(i = 0; i < free_block_count; i++)
+	for(i = sup->free_map->block; i < free_block_count + sup->free_map->block; i++)
 	{
-		readblock(disk, i, databuf + disk->block_size*i);
-		printf("ii:%d\n",i);		
+		readblock(disk, i, databuf);
 		int j;
-		for(j = disk->block_size*i; j < free_block_count*disk->block_size; j++)
+		for(j = 0; j < disk->block_size; j++)
 		{
-			printf("%c",databuf[j]);
-		}
-		printf("\n");
-	}
-	for(i = 0; i < free_block_count*disk->block_size; i++)
-	{					
-		if(databuf[i] == '0') 
-		{
-			set_block(disk, i, '1');
-			return i;
+			if(databuf[j] == '0')
+			{
+				j += (i-sup->free_map->block)*disk->block_size;				
+				set_block(disk, j, '1');
+				printf("Returning %d\n",j);
+				//print_disk(disk, disk->size);
+				return j;
+			}
 		}
 	}
-	printf("\n");
-	return -1;
+	printf("Returning -1\n");
+	return -1;	
 } 
 
 int init_fsys(disk_t disk, int size)
@@ -251,6 +252,12 @@ int init_fsys(disk_t disk, int size)
 	writeblock(disk, root->block, (unsigned char*)databuf);
 	return 0;
 }
+
+/*void print_block(disk_t disk, unsigned char* databuf)
+{
+	int i;
+	for(i = 0; i < 
+}*/
 
 void print_disk(disk_t disk, int disk_size)
 {
@@ -357,12 +364,13 @@ int createfile(disk_t disk, char* name, char* path, int size, file* input)
 		file new = &databuf[index];
 		strcpy(&new->c0, name);
 		new->directory = false;
-		int block = get_free_block(disk);
-		new->inode = block;
-		int wblock = 0;
-		if(op != NULL) wblock = op->inode;
-		else wblock = sup->root->block;
-		writeblock(disk, wblock, (unsigned char*)databuf);
+		printf("Getting block for inode\n");
+		int iblock = get_free_block(disk);
+		new->inode = iblock;
+		int block;
+		if(op != NULL) block = op->inode;
+		else block = sup->root->block;
+		writeblock(disk, block, (unsigned char*)databuf);//directory written back
 
 		//create inode
 
@@ -374,11 +382,11 @@ int createfile(disk_t disk, char* name, char* path, int size, file* input)
 		for(i = 0; i < size; i++)
 		{
 			array[i] = get_free_block(disk);
-			file filebuf = malloc(sizeof(unsigned char)*disk->block_size);
-			memcpy(filebuf, inputbuf + i*disk->block_size, disk->block_size);
-			printf("array[i]: %d\n", array[i]);			
-			writeblock(disk, array[i], (unsigned char*)filebuf);
+			printf("array[%d]: %d\n", i, array[i]);			
+			writeblock(disk, array[i], ((unsigned char*)inputbuf)+i*disk->block_size);
 		}
+		printf("Writing inode to %d\n", iblock);
+		writeblock(disk, iblock, (unsigned char*)databuf);
 		return 1;
 	}
 	return -1;
@@ -453,12 +461,17 @@ int main(int argc, char** argv)
 	
 	printf("\nCheking file created\n");
 	file filebuf = malloc(disk->block_size*2);
-	for(i = 0; i < disk->block_size*2; i++)
+	for(i = 0; i < disk->block_size; i++)
 	{
 		((unsigned char*)filebuf)[i] = 't';
 	}
+	for(; i < disk->block_size*2; i++)
+	{
+		((unsigned char*)filebuf)[i] = 'v';
+	}
 
 	createfile(disk, "tester", "/", 2, &filebuf);
+	print_disk(disk, disk->size);
 	
 	printf("Reading file\n");
 	unsigned char* red = (unsigned char*)readfile(disk, "/tester");
