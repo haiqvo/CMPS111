@@ -284,27 +284,34 @@ file fetch(disk_t disk, char* name, file* databuf)
 	for(i = 0; i < disk->block_size/sizeof(struct file_entry); i++)
 	{
 		file ret = &((*databuf)[i]);
-		if(strcmp(&(ret->c0), "\0")) return NULL;
-		if(strcmp(&(ret->c0), name))
+		if(strcmp(&(ret->c0), "\0") == 0) 
+		{
+			printf("%s not found after %d checks\n", name, i);			
+			return NULL;
+		}
+		if(strcmp(&(ret->c0), name) == 0)
 		{
 			readblock(disk, ret->inode, (unsigned char*)(*databuf));
+			printf("fetch returning %s\n", &(ret->c0));
 			return ret;
 		}
 	}
 }
 
-file opendir(disk_t disk, char* path, file* databuf)
-{
+file opendir(disk_t disk, char* directory, file* databuf)
+{	
+	char* path = strdup(directory);
 	char* dir;
 	file op = root_entry;
-	if(strcmp(path, "/")) dir = NULL;
+	if(strcmp(path, "/") == 0) dir = NULL;
 	else dir = strtok(path, "/");
-
+	printf("dir: %s\n", dir);
 	while(dir != NULL)
 	{
 		op = fetch(disk, dir, databuf);
 		dir = strtok(NULL, "/");
 	}
+	printf("opendir returning : %s\n", &(op->c0));
 	return op;
 }
 
@@ -394,21 +401,29 @@ int createfile(disk_t disk, char* name, char* path, int size, file* input)
 
 file readfile(disk_t disk, char* path)
 {
+	printf("Reading file at path: %s\n", path);	
 	super sup = read_super(disk);
 	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
 	readblock(disk, sup->root->block, (unsigned char*)(databuf));
 	file op = opendir(disk, path, &databuf);
 	if(op == NULL) return NULL;
-	else if(op->directory) return NULL;
+	else if(op->directory == true) 
+	{
+		printf("Can't read %s\n", &(op->c0));		
+		printf("readfile used only on files\n");	
+		return NULL;
+	}
 	
 	inode inodebuf = (inode)databuf;
+	printf("File to be read is of size %d\n", inodebuf->size);
 	databuf = malloc(sizeof(unsigned char)*disk->block_size*inodebuf->size);
 	
 	int* array = &inodebuf->blockarray;
 	int i;
 	for(i = 0; i < inodebuf->size; i++)
 	{
-		readblock(disk, array[i], (unsigned char*)(databuf + i*disk->block_size));
+		printf("array[%d]: %d\n", i, array[i]);		
+		readblock(disk, array[i], ((unsigned char*)databuf) + i*disk->block_size);
 	}
 	return databuf;
 }
@@ -474,12 +489,11 @@ int main(int argc, char** argv)
 	print_disk(disk, disk->size);
 	
 	printf("Reading file\n");
-	unsigned char* red = (unsigned char*)readfile(disk, "/tester");
+	unsigned char* red = (unsigned char*)readfile(disk, "/tester/");
 	printf("\tPrinting file\n");
 	for(i = 0; i < disk->block_size*2; i++)
 	{
-		printf("I:%d\n",i);
-		printf("\t%c", red[i]);
+		printf("%c", red[i]);
 	}
 	printf("\n");
 }
