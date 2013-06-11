@@ -293,7 +293,6 @@ file fetch(disk_t disk, char* name, file* databuf)
 		file ret = &((*databuf)[i]);
 		if(strcmp(&(ret->c0), "\0") == 0) //if there is no name founded return null
 		{
-			printf("path %s does not exist\n", name);
 			return NULL;
 		}
 		if(strcmp(&(ret->c0), name) == 0)//once name found return block
@@ -312,12 +311,12 @@ file opendir(disk_t disk, char* directory, file* databuf)
 	file op = root_entry;
 	if(strcmp(path, "/") == 0) dir = NULL;//if the path is just the root
 	else dir = strtok(path, "/");
+
 	while(dir != NULL)
 	{
 		op = fetch(disk, dir, databuf);
 		dir = strtok(NULL, "/");//continue down the path
 	}
-	printf("1the op is : %s\n", &(op->c0));
 	return op;
 }
 
@@ -366,7 +365,6 @@ int makdir(disk_t disk, char* name, char* path)
 //create a file
 int createfile(disk_t disk, char* name, char* path, int size, file* input)
 {
-	printf("size of array: %d \n", size);
 	file inputbuf = *input;
 	super sup = read_super(disk);
 	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
@@ -378,12 +376,11 @@ int createfile(disk_t disk, char* name, char* path, int size, file* input)
 	if(index >= 0)// create file
 	{
 		file new = &databuf[index];
-		strcpy(&new->c0, name);
-		printf("the name saved is : %s\n", &(new->c0));
 		int strlength = strlen(name);
-		if(strlength < 8){
-			new->cn = '\0';
+		if(strlength > 8){
+			name[8] = '\0';
 		}
+		strcpy(&new->c0, name);
 		new->directory = false;
 		int iblock = get_free_block(disk);
 		new->inode = iblock;
@@ -417,16 +414,8 @@ file readfile(disk_t disk, char* path)
 	super sup = read_super(disk);
 	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
 	readblock(disk, sup->root->block, (unsigned char*)(databuf));
-	printf("hello\n");
 	file op = opendir(disk, path, &databuf);//go to the directory in the path
-	printf("the op is : %s\n", &(op->c0));
 	if(op == NULL){ 
-		printf("hello\n");
-		return NULL;
-	}
-	else if(op->directory == true) 
-	{
-		printf("hello1\n");
 		return NULL;
 	}
 	inode inodebuf = (inode)databuf;
