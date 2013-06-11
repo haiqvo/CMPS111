@@ -46,6 +46,24 @@ address make_address(int add, int block_size)
 	return ret;
 }
 
+//The struct for the file entry
+struct file_entry
+{
+	char c0;//the name of the file
+	char c1;
+	char c2;
+	char c3;
+	char c4;
+	char c5;
+	char c6;
+	char c7;
+	char cn;
+	bool directory;
+	int inode;
+	int size;
+};
+typedef struct file_entry* file;
+
 //the super block 
 struct super_block
 {
@@ -69,23 +87,7 @@ super read_super(disk_t disk)
 	return ret;
 }
 
-//The struct for the file entry
-struct file_entry
-{
-	char c0;//the name of the file
-	char c1;
-	char c2;
-	char c3;
-	char c4;
-	char c5;
-	char c6;
-	char c7;
-	char cn;
-	bool directory;
-	int inode;
-	int size;
-};
-typedef struct file_entry* file;
+
 
 file root_entry;
 
@@ -188,11 +190,6 @@ int init_fsys(disk_t disk, int size)
 	int free_block_count = size/disk->block_size + 1;
 
 	address root = make_address(free_blocks->address + disk->block_size, disk->block_size);
-	root_entry = malloc(sizeof(struct file_entry));// making the file entry for root
-	strcpy(&(root_entry->c0), "root");
-	root_entry->directory = true;
-	root_entry->inode = root->block;
-	root_entry->size = 0;
 	address data = make_address(root->address + disk->block_size, disk->block_size);
 
 	//initialize disk as \0
@@ -219,7 +216,7 @@ int init_fsys(disk_t disk, int size)
 
 	free(databuf);//realloc	
 	databuf = malloc(sizeof(unsigned char)*free_size);
-	
+
 	for(i = 0; i < free_block_count + 2; i++)//free block map start
 	{
 		databuf[i] = '1';
@@ -231,7 +228,7 @@ int init_fsys(disk_t disk, int size)
 	}
 	databuf[j] = '\0';//free block map end
 	int ret = write_array(disk, free_blocks, databuf);
-	
+
 	//init root
 	int file_count = disk->block_size/sizeof(struct file_entry);
 	file filebuf = calloc(file_count, sizeof(struct file_entry));
@@ -252,6 +249,12 @@ int init_fsys(disk_t disk, int size)
 		filebuf[i].size = -1;
 	}
 	writeblock(disk, root->block, (unsigned char*)databuf);
+
+	root_entry = malloc(sizeof(struct file_entry));// making the file entry for root
+	strcpy(&(root_entry->c0), "root");
+	root_entry->directory = true;
+	root_entry->inode = root->block;
+	root_entry->size = 0;
 	return 0;
 }
 
@@ -314,6 +317,7 @@ file opendir(disk_t disk, char* directory, file* databuf)
 		op = fetch(disk, dir, databuf);
 		dir = strtok(NULL, "/");//continue down the path
 	}
+	printf("1the op is : %s\n", &(op->c0));
 	return op;
 }
 
@@ -341,7 +345,7 @@ int makdir(disk_t disk, char* name, char* path)
 	readblock(disk, sup->root->block, (unsigned char*)(databuf));
 	file op = opendir(disk, path, &databuf);
 	if(op == NULL) return -1;
-	
+
 	int index = find_empty_entry(disk, &databuf);// looks for a empty spot
 	if(index >= 0)// if spot open create a directory
 	{
@@ -360,14 +364,8 @@ int makdir(disk_t disk, char* name, char* path)
 }
 
 //create a file
-int createfile(disk_t disk, char* name, char* path, file* input, int length)
+int createfile(disk_t disk, char* name, char* path, int size, file* input)
 {
-	int size;
-	if(length != disk->block_size){
-		size = length/disk->block_size + 1;
-	}else{
-		size = length/disk->block_size;
-	}
 	printf("size of array: %d \n", size);
 	file inputbuf = *input;
 	super sup = read_super(disk);
@@ -381,6 +379,11 @@ int createfile(disk_t disk, char* name, char* path, file* input, int length)
 	{
 		file new = &databuf[index];
 		strcpy(&new->c0, name);
+		printf("the name saved is : %s\n", &(new->c0));
+		int strlength = strlen(name);
+		if(strlength < 8){
+			new->cn = '\0';
+		}
 		new->directory = false;
 		int iblock = get_free_block(disk);
 		new->inode = iblock;
@@ -410,19 +413,24 @@ int createfile(disk_t disk, char* name, char* path, file* input, int length)
 //uses as a function to read files
 file readfile(disk_t disk, char* path)
 {
+	int j;
 	super sup = read_super(disk);
 	file databuf = malloc(sizeof(unsigned char)*disk->block_size);
 	readblock(disk, sup->root->block, (unsigned char*)(databuf));
+	printf("hello\n");
 	file op = opendir(disk, path, &databuf);//go to the directory in the path
-	if(op == NULL) return NULL;
-	else if(op->directory == true) 
-	{
+	printf("the op is : %s\n", &(op->c0));
+	if(op == NULL){ 
+		printf("hello\n");
 		return NULL;
 	}
-	
+	else if(op->directory == true) 
+	{
+		printf("hello1\n");
+		return NULL;
+	}
 	inode inodebuf = (inode)databuf;
 	databuf = malloc(sizeof(unsigned char)*disk->block_size*inodebuf->size);
-	
 	int* array = &inodebuf->blockarray;
 	int i;
 	for(i = 0; i < inodebuf->size; i++)// go though the blocks and read  the file.
@@ -431,3 +439,75 @@ file readfile(disk_t disk, char* path)
 	}
 	return databuf;
 }
+
+/*
+int main(int argc, char** argv)
+{
+	char *disk_name;
+	int disk_size;
+	char *disk_test;
+	disk_t disk;
+	unsigned char *databuf;
+	int i, j;
+
+	if(argc != 3)
+	{
+		printf("Usage: myfile <disk_name> <disk_size> (in blocks)\n");
+		exit(-1);
+	}
+
+	disk_name = (char *)argv[1];
+	disk_test = (char *)argv[2];
+	disk_size = atoi(disk_test);
+
+	createdisk(disk_name, disk_size);
+	printf("Disk %s created with size %d\n", disk_name, disk_size);
+	disk = opendisk(disk_name);
+
+	//printf("%c \n", disk_test[1]);
+
+	init_fsys(disk, disk_size);	
+
+
+	print_disk(disk, disk_size);
+
+	printf("\nChecking superblock\n");
+	databuf = malloc(disk->block_size);
+	readblock(disk, 0, databuf);
+	for(i = 0; i < 4; i++)
+	{
+		printf("%d:%d\n",i,((int*)databuf)[i]);
+	}
+
+	//printf("\nChecking makdir\n");
+	//printf("\tMaking test\n");
+	//makdir(disk, "test", "/");
+	//printf("\tMaking alsotest\n");
+	//makdir(disk, "alsotest", "/");
+	//print_disk(disk, disk_size);
+	//exit(0);
+
+	printf("\nCheking file created\n");
+	file filebuf = malloc(disk->block_size*2);
+	for(i = 0; i < disk->block_size; i++)
+	{
+		((unsigned char*)filebuf)[i] = 't';
+	}
+	for(; i < disk->block_size*2-145; i++)
+	{
+		((unsigned char*)filebuf)[i] = 'v';
+	}
+
+	createfile(disk, "tester", "/", 2, &filebuf);
+	print_disk(disk, disk->size);
+
+	printf("Reading file\n");
+	unsigned char* red = (unsigned char*)readfile(disk, "/tester/");
+	printf("\tPrinting file\n");
+	for(i = 0; i < disk->block_size*2; i++)
+	{
+		printf("%c", red[i]);
+	}
+	printf("\n");
+}
+*/

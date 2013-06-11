@@ -8,19 +8,44 @@ int main(int argc, char** argv)
 	char *disk_name;
 	int disk_size;
 	char *disk_test;
+	char* file_name;
+	char* path;
 	disk_t disk;
 	unsigned char *databuf;
 	int i, j;
-	
-	if(argc != 2)
+	char ch;
+	FILE *fp;
+
+	if(argc != 5)
 	{
-		printf("Usage: fileSysTest1 <disk_size> (in blocks)\n");
+		printf("Usage: myfile <disk_name> <disk_size> <file_name> <path> (in blocks)\n");
 		exit(-1);
 	}
-	
-	disk_name = "SampleFileSys";
-	disk_test = (char *)argv[1];
+
+	disk_name = (char *)argv[1];
+	disk_test = (char *)argv[2];
+	file_name = (char *)argv[3];
+	path 	  = (char *)argv[4];
 	disk_size = atoi(disk_test);
+	
+	fp = fopen(file_name, "r");
+	fseek(fp, 0, SEEK_END);
+	int pos = ftell(fp);
+	printf("the number is %d\n", pos);
+	fseek(fp, 0, SEEK_SET);
+
+	char *bytes = malloc(pos);
+	fread(bytes, pos, 1, fp);
+
+  	fclose(fp);
+  	printf("the last is: %c \n", bytes[pos-2]);
+  	for(i=0; i<pos; i++){
+  		printf("%c", bytes[i]);
+	}
+
+
+
+  	//exit(0);
 
 	createdisk(disk_name, disk_size);
 	printf("Disk %s created with size %d\n", disk_name, disk_size);
@@ -30,35 +55,56 @@ int main(int argc, char** argv)
 
 	print_disk(disk, disk_size);
 
+	printf("\nChecking superblock\n");
+	databuf = malloc(disk->block_size);
+	readblock(disk, 0, databuf);
+	for(i = 0; i < 4; i++)
+	{
+		printf("%d:%d\n",i,((int*)databuf)[i]);
+	}
+
 /*	printf("\nChecking makdir\n");
 	printf("\tMaking test\n");
 	makdir(disk, "test", "/");
 	printf("\tMaking alsotest\n");
 	makdir(disk, "alsotest", "/");
 	print_disk(disk, disk_size);
-	exit(0);
-	
-	//printf("\nCheking file created\n");
-	file filebuf = malloc(disk->block_size*2);
-	for(i = 0; i < disk->block_size; i++)
-	{
-		((unsigned char*)filebuf)[i] = 't';
+	exit(0);*/
+
+	int size;
+	if(pos%disk->block_size != 0){
+		size = pos/disk->block_size + 1;
+	}else{
+		size = pos/disk->block_size;
 	}
-	for(; i < disk->block_size*2; i++)
-	{
-		((unsigned char*)filebuf)[i] = 'v';
+	printf("size: %d\n", disk->block_size);
+	
+	printf("\nCheking file created\n");
+	file filebuf = malloc(disk->block_size*size);
+	for(i=0; i<pos; i++){
+		((unsigned char*)filebuf)[i] = bytes[i];
 	}
 
-	createfile(disk, "tester", "/", 2, &filebuf);
-	//print_disk(disk, disk->size);
-	
-	//printf("Reading file\n");
-	unsigned char* red = (unsigned char*)readfile(disk, "/tester/");
-	//printf("\tPrinting file\n");
-	for(i = 0; i < disk->block_size*2; i++)
-	{
-		//printf("%c", red[i]);
+	for(i=0; i<pos; i++){
+		printf("%c", ((unsigned char*)filebuf)[i]);
 	}
-	//printf("\n");
-	*/
+
+	createfile(disk, "sample", path, size, &filebuf);
+	print_disk(disk, disk->size);
+
+	printf("Reading file\n");
+	//char * path_way;
+	//strcat(path_way, path);
+	//strcat(path_way, file_name);
+	//strcat(path_way, "/");
+	unsigned char* red = (unsigned char*)readfile(disk, "/sample/");
+
+	printf("\tPrinting file\n");
+	for(i = 0; i < pos; i++)
+	{
+		//printf("Hello\n" );
+		//printf("i: %d", i);
+		printf("%c", red[i]);
+	}
+	printf("\n");
 }
