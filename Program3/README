@@ -1,0 +1,23 @@
+********************************************************
+README
+********************************************************
+Project: File System
+
+Author : Erik Swedberg, Hai Vo, and Justin Yeo
+
+Files include : DESIGN, mydisk.c, mydisk.h, myfile, samplefile, Makefile, and README
+
+--------------------------------------------------------
+How To Run
+--------------------------------------------------------
+Make sure all of the files are in one folder and type 'make'
+the parameters are 
+	./fileSysTest <disk_name> <disk_size> <file_name> <path>
+there is a sample file included that can be used.
+	./fileSysTest sdisk 256 samplefile /
+
+	"sdisk" 		will be the name of the file system
+	"256" 			will be the number of blocks
+	"samplefile" 	will be the file it will copy to our file system
+	"/" 			is the path where it will be copied.
+	(if the file system is just created / is the only option)
