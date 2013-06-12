@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 
 	if(argc != 5)
 	{
-		printf("Usage: myfile <disk_name> <disk_size> <file_name> <path> (in blocks)\n");
+		printf("Usage: fileSysTest <disk_name> <disk_size> <file_name> <path>\n");
 		exit(-1);
 	}
 
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
 	//reading back the file
 	printf("==========================================\n");
 	printf("Reading file\n");
-	char * path_way;
+	char * path_way = malloc(strlen(path)+strlen(file_name)+1);
 	char * cut_name =  malloc(8);
 	strcat(path_way, path);
 	if(strlen(file_name)>8){
