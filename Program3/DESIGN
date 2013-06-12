@@ -24,7 +24,7 @@ Data:
 	
 5. inode
 	-contains size and blockarray
-	-[STUB] how does this accomplish an array of blocks again?
+	-size contains the number of blocks a file needs and the blockarray is the location of all the blocks that contain the file.
 
 
 Operations:
