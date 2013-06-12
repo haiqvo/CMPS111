@@ -1,0 +1,100 @@
+Purpose:
+This document specifies the design of a file system program. The program creates files in open blocks by using a block map.  Each file has a name and an inode which contains the blocks that the file is split into.
+
+
+Assumptions:
+1. Program will be used on linux. Developed and tested on linux.
+
+Data:
+1. address
+  -contains ints for block number, offset, and address
+	-this struct contains the information to find and use blocks
+	
+2. file
+	-contains 8 character name, a boolean which contains whether or not it is a directory, int inode number, and int size
+	-this struct contains all the information of a file.  It's name is in chars, it's type in the boolean, and the inode which contains an array of block numbers which contains the contents of the file (could be other directories as well)
+	
+3. super
+	-contains int size, and addresses for the free_map, the root, and the data
+	-the entire file structure is contained within this struct, as all files look to the free_map to find open blocks to place files, and the root is the original directory from which other directories and files are based
+	- data holds the address for where the data section of the disk goes
+
+4. directory
+	-contains an array of files because that's what it is
+	
+5. inode
+	-contains size and blockarray
+	-[STUB] how does this accomplish an array of blocks again?
+
+
+Operations:
+1. address make_address(int, int)
+   - Description: makes an address out of inputs
+   - Input: int add, and int block_size, which get added to an address struct
+   - Output: the filled address
+
+2. super read_super(disk_t)
+	- Description: initializes the super block from the disk
+	- Input: the disk
+	- Output: the superblock with data from disk filled in
+	
+3. int write_array(disk_t, address, unsigned char*)
+	- Description:  writes an array into the address location in the disk
+	- Input:the disk to write to, the address to write to, and the array to put it in
+	- Output: int for error
+	
+4. void set_free_blocks(disk_t, address, int, int, char)
+	- Description: get's free blocks and sets them with a value
+	- Input: the disk to inspect, the address of the free_map, a block number offset, the total number of blocks, and the character that you want to set the free blocks too
+	- Output: nothing
+	
+5. void set_block(disk_t, int, char)
+	- Description: sets the blocks with a value
+	- Input: the disk to use, the block offset, and the character value to set the blocks to
+	- Output: nothing
+	
+6. int get_free_block(disk_t)
+	- Description: finds an open block, sets it to used, and returns its number
+	- Input: the disk to inspect
+	- Output: the int of the free block, or -1 for failure to find free block
+	
+7. int init_fsys(disk_t, int)
+	- Description: initializes the file system with a set size
+	- Input:  disk to alter and the size to alter its file system size to
+	- Output: error message int
+	
+8. void print_disk(disk_t, int)
+	- Description: a print method for disks
+	- Input: the disk, and the size of disk
+	- Output: nothing
+	
+9. file fetch(disk_t, char*, file*)
+	- Description: used to get the data for a block by name
+	- Input: the disk to inspect, the name of the file, and a buffer for the data
+	- Output: the data from specified block
+	
+10. file opendir(disk_t, char*, file*)
+	- Description: goes through the path to the file to fetch
+	- Input: the disk to inspect, the name of the directory, and a buffer for the data
+	- Output: the file you were looking for
+	
+11. int find_empty_entry(disk_t, file*)
+	- Description: looks for empty file entry
+	- Input: the disk to inspect and the file directory to search
+	- Output: the index of an empty entry or -1 if there are no empty entries
+	
+12. int makdir(disk_t, char*, char*)
+	- Description: makes a directory
+	- Input: the disk to add to, the name of the directory, and the name of the path of that directory
+	- Output: the index of the block where the directory is, or -1 for failure
+	
+13. int createfile(disk_t, char*, char*, int, file*)
+	- Description: creates a file
+	- Input: the disk to add to, the name of the file, the path of the file, the size of the file and the future contents of the file
+	- Output: int for error or success
+	
+14. file readfile(disk_t, char*)
+	- Description: a function to read files
+	- Input: the disk to inspect, and the path of the file you want
+	- Output: a buffer with the contents of the file you wanted
+	
